@@ -274,9 +274,10 @@ export const PaymentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Payments Table */}
+      {/* Payments Table & Mobile Cards */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-semibold select-none">
               <tr>
@@ -364,6 +365,81 @@ export const PaymentsPage: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Payments Cards View */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredPayments.length === 0 ? (
+            <div className="text-center py-12 px-4 text-slate-400">
+              No payment records found.
+            </div>
+          ) : (
+            filteredPayments.map((p) => {
+              const cand = candidates.find((c) => c.id === p.candidate_id);
+              return (
+                <div
+                  key={p.id}
+                  className={`p-4 space-y-3 ${p.is_reversal ? 'bg-rose-50/30 dark:bg-rose-950/20' : ''}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-teal-700 dark:text-teal-400">
+                          {p.receipt_number}
+                        </span>
+                        {p.is_reversal && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">
+                            REVERSAL
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white mt-1">
+                        {cand?.full_name || 'Candidate'}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatDate(p.payment_date)} • <span className="uppercase font-semibold">{p.mode}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className={`font-mono text-base font-black ${p.is_reversal ? 'text-rose-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {p.is_reversal ? `-${formatINR(p.amount)}` : formatINR(p.amount)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {p.remarks && (
+                    <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-lg">
+                      {p.remarks}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        setSelectedReceipt(p);
+                        setIsReceiptModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 transition"
+                    >
+                      Receipt
+                    </button>
+                    {isAdmin && !p.is_reversal && (
+                      <button
+                        onClick={() => {
+                          setPaymentToReverse(p);
+                          setIsReversalModalOpen(true);
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 hover:bg-rose-50"
+                      >
+                        Reverse
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

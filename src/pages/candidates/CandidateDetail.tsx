@@ -6,17 +6,12 @@ import {
   MessageSquare,
   Calendar,
   CreditCard,
-  PlusCircle,
   FileText,
-  Clock,
-  Car,
-  CheckCircle2,
   AlertCircle,
   Sparkles,
   ArrowLeft,
   GraduationCap,
   Download,
-  RotateCcw,
   Plus,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
@@ -52,7 +47,7 @@ export const CandidateDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'classes' | 'payments' | 'rto' | 'notes'>('overview');
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [, setEnrollments] = useState<Enrollment[]>([]);
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);

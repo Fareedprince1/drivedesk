@@ -6,18 +6,13 @@ import {
   CalendarDays,
   CreditCard,
   Menu,
-  AlertCircle,
-  Car,
-  Settings,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 
 interface MobileNavProps {
   onOpenDrawer: () => void;
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({ onOpenDrawer }) => {
-  const { isAdmin } = useAuth();
 
   const primaryItems = [
     { to: '/', label: 'Home', icon: LayoutDashboard },

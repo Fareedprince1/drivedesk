@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { db } from '../../lib/storage';
-import type { Package } from '../../types';
 import { Modal } from '../../components/common/Modal';
 import { formatINR, getTodayIST } from '../../lib/formatters';
 import { useAuth } from '../../context/AuthContext';

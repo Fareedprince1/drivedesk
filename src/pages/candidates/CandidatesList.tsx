@@ -9,6 +9,8 @@ import {
   MessageSquare,
   ChevronRight,
   User,
+  Users,
+  Plus,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
@@ -215,7 +217,8 @@ export const CandidatesList: React.FC = () => {
 
       {/* Table & Mobile Cards */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-semibold select-none">
               <tr>
@@ -364,6 +367,101 @@ export const CandidatesList: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {paginatedCandidates.length === 0 ? (
+            <div className="text-center py-12 px-4 text-slate-400 space-y-3">
+              <Users className="w-9 h-9 text-slate-300 dark:text-slate-600 mx-auto" />
+              <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">
+                No candidates found
+              </div>
+              <p className="text-xs text-slate-400">
+                Enroll your first driving student or try another search filter.
+              </p>
+            </div>
+          ) : (
+            paginatedCandidates.map((cand) => {
+              const stats = cand.stats;
+              const balance = stats?.balance || 0;
+              return (
+                <div
+                  key={cand.id}
+                  onClick={() => navigate(`/candidates/${cand.id}`)}
+                  className="p-4 space-y-3 active:bg-slate-50 dark:active:bg-slate-800/60 transition cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          {cand.full_name}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800">
+                          {cand.candidate_code}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {cand.active_enrollment?.package_name || 'No Active Package'}
+                      </p>
+                    </div>
+                    <Badge variant={getStatusBadgeVariant(cand.status)} size="sm">
+                      {cand.status}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Classes</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {stats ? `${stats.classes_completed} / ${stats.total_classes}` : '-'}
+                      </span>
+                    </div>
+
+                    <div className="text-right space-y-0.5">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Balance</span>
+                      <span className={`font-mono font-extrabold ${balance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {balance > 0 ? formatINR(balance) : '₹0 Cleared'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1" onClick={(e) => e.stopPropagation()}>
+                    <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                      {formatPhone(cand.mobile)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={getTelUrl(cand.mobile)}
+                        title="Call Candidate"
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-teal-600 transition"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                      </a>
+                      <a
+                        href={getWhatsAppUrl(
+                          cand.mobile,
+                          `Hello ${cand.full_name}, greetings from ${db.getSettings().school_name}!`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Chat on WhatsApp"
+                        className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        onClick={() => navigate(`/candidates/${cand.id}`)}
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 transition"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination Bar */}

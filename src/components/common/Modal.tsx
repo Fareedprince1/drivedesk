@@ -54,9 +54,9 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden transform transition-all z-10`}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
             {description && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>
             )}
@@ -68,7 +68,7 @@ export const Modal: React.FC<ModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 max-h-[82vh] overflow-y-auto">{children}</div>
+        <div className="p-4 sm:p-6 max-h-[85vh] overflow-y-auto">{children}</div>
       </div>
     </div>
   );

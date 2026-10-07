@@ -1090,7 +1090,7 @@ class DriveDeskStorage {
         queryTable('instructors'),
         queryTable('expenses'),
         queryTable('packages'),
-        supabase.from('settings').select('*').maybeSingle().then((r) => r.data).catch(() => null),
+        supabase.from('settings').select('*').maybeSingle().then((r) => r?.data || null, () => null),
         queryTable('candidate_notes'),
         queryTable('rto_tracking'),
       ]);
@@ -2359,7 +2359,7 @@ class DriveDeskStorage {
     return candidateId ? list.filter((n) => n.candidate_id === candidateId) : list;
   }
 
-  addCandidateNote(data: Omit<CandidateNote, 'id' | 'created_at'>, role: UserRole = 'admin'): CandidateNote {
+  addCandidateNote(data: Omit<CandidateNote, 'id' | 'created_at'>, _role: UserRole = 'admin'): CandidateNote {
     const list = this.getCandidateNotes();
     const newNote: CandidateNote = {
       ...data,
@@ -2372,7 +2372,7 @@ class DriveDeskStorage {
     return newNote;
   }
 
-  toggleNoteDone(noteId: string, role: UserRole = 'admin'): CandidateNote | undefined {
+  toggleNoteDone(noteId: string, _role: UserRole = 'admin'): CandidateNote | undefined {
     const list = this.getCandidateNotes();
     const note = list.find((n) => n.id === noteId);
     if (!note) return undefined;

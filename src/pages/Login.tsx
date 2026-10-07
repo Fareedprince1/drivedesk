@@ -8,7 +8,6 @@ import {
   Mail,
   User,
   ArrowRight,
-  Database,
   CheckCircle2,
   AlertCircle,
   Copy,
@@ -175,6 +174,14 @@ export const Login: React.FC = () => {
             Create Account
           </button>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>{successMessage}</div>
+          </div>
+        )}
 
         {/* Alerts / Error Messages */}
         {errorMessage && (

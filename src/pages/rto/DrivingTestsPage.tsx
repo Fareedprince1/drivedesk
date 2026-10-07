@@ -114,7 +114,7 @@ const STAGES: { key: RTOStage; label: string; desc: string; color: string; bg: s
 ];
 
 export const DrivingTestsPage: React.FC = () => {
-  const { currentRole } = useAuth();
+  const { role: currentRole } = useAuth();
   const [dataVersion, setDataVersion] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('all');
@@ -179,14 +179,15 @@ export const DrivingTestsPage: React.FC = () => {
           (a) => a.enrollment_id === enrollment.id && (a.status === 'completed' || a.status === 'absent')
         );
         const completedClasses = candidateApps.length;
-        const totalClasses = enrollment.classes_total;
+        const totalClasses = enrollment.total_classes;
         const remainingClasses = Math.max(0, totalClasses - completedClasses);
 
         // Calculate balance
         const totalPaid = payments
-          .filter((p) => p.enrollment_id === enrollment.id && !p.is_reversal && !p.reversed_by_payment_id)
+          .filter((p) => p.enrollment_id === enrollment.id && !p.is_reversal && !p.reverses_payment_id)
           .reduce((sum, p) => sum + p.amount, 0);
-        const balance = Math.max(0, enrollment.fee_agreed - totalPaid);
+        const feeAgreed = enrollment.total_fee - (enrollment.discount_amount || 0);
+        const balance = Math.max(0, feeAgreed - totalPaid);
 
         // Calculate days until test
         let daysUntilTest: number | null = null;

@@ -13,8 +13,7 @@ import {
   TrendingDown,
   BarChart3,
   Settings,
-  ShieldCheck,
-  ShieldAlert,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,7 +23,7 @@ interface MobileDrawerProps {
 }
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) => {
-  const { role, isAdmin } = useAuth();
+  const { role, isAdmin, user, logout } = useAuth();
 
   if (!isOpen) return null;
 
@@ -56,7 +55,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
               <Car className="w-4 h-4" />
             </div>
             <span className="font-bold text-base text-slate-900 dark:text-white">
-              Drive<span className="text-teal-600">Desk</span>
+              Gem<span className="text-teal-600">DrivingSchool</span>
             </span>
           </div>
           <button
@@ -99,6 +98,33 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
             );
           })}
         </nav>
+
+        {/* User profile & Logout */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-sm">
+              {user?.name?.[0]?.toUpperCase() || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                {user?.name || user?.email || 'User'}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {user?.email}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              onClose();
+              logout();
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors border border-rose-200 dark:border-rose-900/50"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
     </div>
   );

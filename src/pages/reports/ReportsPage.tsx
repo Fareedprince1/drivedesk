@@ -87,7 +87,7 @@ export const ReportsPage: React.FC = () => {
     return allPayments.filter(
       (p) =>
         !p.is_reversal &&
-        !p.reversed_by_payment_id &&
+        !p.reverses_payment_id &&
         p.payment_date >= startDate &&
         p.payment_date <= endDate
     );
@@ -121,7 +121,7 @@ export const ReportsPage: React.FC = () => {
   const revenueByMode = useMemo(() => {
     const modes: Record<string, number> = { upi: 0, cash: 0, card: 0, bank_transfer: 0 };
     filteredPayments.forEach((p) => {
-      modes[p.payment_mode] = (modes[p.payment_mode] || 0) + p.amount;
+      modes[p.mode] = (modes[p.mode] || 0) + p.amount;
     });
     return modes;
   }, [filteredPayments]);
@@ -192,10 +192,11 @@ export const ReportsPage: React.FC = () => {
         const candidate = candidates.find((c) => c.id === enr.candidate_id);
         const pkg = packages.find((p) => p.id === enr.package_id);
         const payments = allPayments.filter(
-          (p) => p.enrollment_id === enr.id && !p.is_reversal && !p.reversed_by_payment_id
+          (p) => p.enrollment_id === enr.id && !p.is_reversal && !p.reverses_payment_id
         );
         const paid = payments.reduce((sum, p) => sum + p.amount, 0);
-        const balance = Math.max(0, enr.fee_agreed - paid);
+        const feeAgreed = enr.total_fee - (enr.discount_amount || 0);
+        const balance = Math.max(0, feeAgreed - paid);
 
         let lastPaymentDate = '-';
         if (payments.length > 0) {
@@ -209,7 +210,7 @@ export const ReportsPage: React.FC = () => {
           candidate,
           enrollment: enr,
           pkg,
-          feeAgreed: enr.fee_agreed,
+          feeAgreed,
           paid,
           balance,
           lastPaymentDate,
@@ -236,8 +237,8 @@ export const ReportsPage: React.FC = () => {
           formatDate(p.payment_date),
           c?.full_name || '-',
           p.amount,
-          p.payment_mode.toUpperCase(),
-          p.notes || '',
+          p.mode.toUpperCase(),
+          p.remarks || '',
         ];
       });
       exportToCSV(`GemDrivingSchool_Revenue_${startDate}_to_${endDate}.csv`, headers, rows);
@@ -252,7 +253,7 @@ export const ReportsPage: React.FC = () => {
           `${formatTime12(a.start_time)} - ${formatTime12(a.end_time)}`,
           c?.full_name || '-',
           inst?.name || '-',
-          veh ? `${veh.name} (${veh.reg_number})` : '-',
+          veh ? `${veh.model} (${veh.registration_number})` : '-',
           a.status.toUpperCase(),
           a.remarks || '',
         ];
@@ -262,7 +263,7 @@ export const ReportsPage: React.FC = () => {
       const headers = ['Instructor Name', 'Phone', 'Total Scheduled', 'Completed Classes', 'No-Shows', 'Completion Rate %'];
       const rows = instructorStats.map((s) => [
         s.instructor.name,
-        s.instructor.phone,
+        s.instructor.mobile,
         s.totalClasses,
         s.completed,
         s.absent,
@@ -272,8 +273,8 @@ export const ReportsPage: React.FC = () => {
     } else if (activeTab === 'vehicles') {
       const headers = ['Vehicle Name', 'Reg Number', 'Fuel Cost (INR)', 'Service/Repair (INR)', 'Total Expenses (INR)', 'Classes Held', 'Cost Per Class (INR)'];
       const rows = vehicleStats.map((s) => [
-        s.vehicle.name,
-        s.vehicle.reg_number,
+        s.vehicle.model,
+        s.vehicle.registration_number,
         s.fuelCost,
         s.serviceCost,
         s.totalCost,
@@ -606,10 +607,10 @@ export const ReportsPage: React.FC = () => {
                           {c?.full_name || '-'}
                         </td>
                         <td className="py-2.5 px-3 uppercase text-[11px] font-bold text-slate-500">
-                          {p.payment_mode}
+                          {p.mode}
                         </td>
                         <td className="py-2.5 px-3 text-slate-500 max-w-xs truncate">
-                          {p.notes || '-'}
+                          {p.remarks || '-'}
                         </td>
                         <td className="py-2.5 px-4 text-right font-bold text-emerald-600">
                           {formatINR(p.amount)}
@@ -680,7 +681,7 @@ export const ReportsPage: React.FC = () => {
                           {c?.full_name || '-'}
                         </td>
                         <td className="py-2.5 px-3">{inst?.name || '-'}</td>
-                        <td className="py-2.5 px-3">{veh?.name || '-'}</td>
+                        <td className="py-2.5 px-3">{veh?.model || '-'}</td>
                         <td className="py-2.5 px-4 text-right">
                           <span
                             className={`inline-flex px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${
@@ -731,7 +732,7 @@ export const ReportsPage: React.FC = () => {
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                         {item.instructor.name}
                       </td>
-                      <td className="py-3 px-3 text-slate-500 font-mono">{item.instructor.phone}</td>
+                      <td className="py-3 px-3 text-slate-500 font-mono">{item.instructor.mobile}</td>
                       <td className="py-3 px-3 text-center font-bold">{item.totalClasses}</td>
                       <td className="py-3 px-3 text-center text-emerald-600 font-bold">{item.completed}</td>
                       <td className="py-3 px-3 text-center text-rose-600 font-bold">{item.absent}</td>
@@ -773,9 +774,9 @@ export const ReportsPage: React.FC = () => {
                   {vehicleStats.map((item) => (
                     <tr key={item.vehicle.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                        {item.vehicle.name}
+                        {item.vehicle.model}
                       </td>
-                      <td className="py-3 px-3 font-mono text-slate-500">{item.vehicle.reg_number}</td>
+                      <td className="py-3 px-3 font-mono text-slate-500">{item.vehicle.registration_number}</td>
                       <td className="py-3 px-3 text-right font-medium text-amber-600">
                         {formatINR(item.fuelCost)}
                       </td>

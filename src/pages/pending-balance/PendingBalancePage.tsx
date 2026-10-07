@@ -159,9 +159,10 @@ export const PendingBalancePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table & Mobile Cards */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-semibold select-none">
               <tr>
@@ -292,6 +293,93 @@ export const PendingBalancePage: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Pending Balance Cards View */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredList.length === 0 ? (
+            <div className="text-center py-12 px-4 text-slate-400">
+              No candidates have pending fee balances. Great work!
+            </div>
+          ) : (
+            filteredList.map((item) => {
+              const cand = item.candidate;
+              const waMessage = `Dear ${cand.full_name}, your pending driving-school balance is ${formatINR(
+                item.balance
+              )}. Kindly make the payment before your next scheduled class.`;
+
+              return (
+                <div
+                  key={cand.id}
+                  onClick={() => navigate(`/candidates/${cand.id}`)}
+                  className="p-4 space-y-3 active:bg-amber-50/40 dark:active:bg-slate-800/40 transition cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          {cand.full_name}
+                        </span>
+                        <span className="font-mono text-[10px] text-teal-700 dark:text-teal-400 font-bold px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800">
+                          {cand.candidate_code}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {item.activeEnrollment.package_name}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Balance</span>
+                      <span className="font-mono font-black text-sm text-rose-600 dark:text-rose-400">
+                        {formatINR(item.balance)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs py-1.5 px-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Paid: <strong className="text-emerald-600 font-mono">{formatINR(item.amount_paid)}</strong> of <span className="font-mono">{formatINR(item.total_fee)}</span>
+                    </span>
+                    <span className="text-slate-400 text-[11px]">
+                      {item.days_since_joining}d enrolled
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1" onClick={(e) => e.stopPropagation()}>
+                    <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                      {formatPhone(cand.mobile)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        href={getWhatsAppUrl(cand.mobile, waMessage)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Send Reminder on WhatsApp"
+                        className="p-2 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 hover:bg-emerald-100 transition"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </a>
+                      <a
+                        href={getTelUrl(cand.mobile)}
+                        title="Call Candidate"
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-teal-600 transition"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        onClick={() => navigate(`/payments?action=record&candidateId=${cand.id}`)}
+                        title="Record Payment"
+                        className="p-2 rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 hover:bg-teal-100 transition"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

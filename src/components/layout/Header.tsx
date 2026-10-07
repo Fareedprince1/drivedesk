@@ -7,7 +7,6 @@ import {
   ShieldAlert,
   Menu,
   LogOut,
-  User,
   Copy,
   Check,
 } from 'lucide-react';
@@ -20,7 +19,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch }) => {
-  const { user, role, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const [copiedAdminEmail, setCopiedAdminEmail] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || 
