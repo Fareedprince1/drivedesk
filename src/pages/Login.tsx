@@ -174,33 +174,35 @@ export const Login: React.FC = () => {
         {errorMessage && (
           <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300 font-medium flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div>{errorMessage}</div>
+            <div className="space-y-1">
+              <div className="font-bold">
+                {errorMessage.toLowerCase().includes('rate limit')
+                  ? 'Supabase Email Rate Limit Exceeded'
+                  : 'Authentication Error'}
+              </div>
+              <div>{errorMessage}</div>
+            </div>
           </div>
         )}
 
-        {successMessage && (
-          <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 font-medium flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-            <div>{successMessage}</div>
-          </div>
-        )}
-
-        {/* Supabase Email Confirmation Helper Box */}
-        {requiresConfirmation && (
-          <div className="mb-6 p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 space-y-2.5">
+        {/* Supabase Rate Limit or Email Confirmation Helper Box */}
+        {(requiresConfirmation || errorMessage.toLowerCase().includes('rate limit')) && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 space-y-2.5">
             <div className="font-bold flex items-center justify-between">
-              <span>⚡ Email Confirmation Required</span>
+              <span className="flex items-center gap-1.5">
+                <span>⚡ Bypass Rate Limit & Auto-Confirm</span>
+              </span>
               <button
                 type="button"
                 onClick={() => setShowSqlHelper(!showSqlHelper)}
                 className="text-[11px] text-teal-700 dark:text-teal-400 underline font-semibold cursor-pointer flex items-center gap-0.5"
               >
-                Auto-confirm via SQL
+                {showSqlHelper ? 'Hide SQL' : 'View Fix SQL'}
                 {showSqlHelper ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
             </div>
             <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
-              Supabase cloud projects have email verification enabled by default. Check your email inbox to confirm, or auto-confirm instantly in your Supabase SQL editor.
+              Supabase free tier limits confirmation emails to ~3/hour. You can completely bypass this by running this quick SQL query in your Supabase SQL editor:
             </p>
 
             {showSqlHelper && (
