@@ -36,9 +36,21 @@ export const CandidatesList: React.FC = () => {
 
   // Add Candidate Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(() => searchParams.get('action') === 'add');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const packages = db.getPackages();
-  const candidates = db.getCandidatesWithStats();
+  // Re-fetch when local storage changes or cloud sync completes
+  React.useEffect(() => {
+    const handleSync = () => setRefreshKey((k) => k + 1);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('drivedesk_sync_complete', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('drivedesk_sync_complete', handleSync);
+    };
+  }, []);
+
+  const packages = useMemo(() => db.getPackages(), [refreshKey]);
+  const candidates = useMemo(() => db.getCandidatesWithStats(), [refreshKey]);
 
   // Filtered & Sorted Candidates
   const filteredCandidates = useMemo(() => {
@@ -386,8 +398,10 @@ export const CandidatesList: React.FC = () => {
         onClose={() => {
           setIsAddModalOpen(false);
           setSearchParams({});
+          setRefreshKey((k) => k + 1);
         }}
         onSuccess={(newId) => {
+          setRefreshKey((k) => k + 1);
           navigate(`/candidates/${newId}`);
         }}
       />

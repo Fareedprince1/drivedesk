@@ -106,12 +106,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               name: userMeta.full_name || session.user.email?.split('@')[0] || 'Administrator',
               role: assignedRole,
             };
+            db.setActiveUser(session.user.id);
             setUser(profile);
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
             await db.syncFromCloud();
           }
         } else {
           if (mounted) {
+            db.setActiveUser(null);
             setUser(null);
             localStorage.removeItem(AUTH_STORAGE_KEY);
           }
@@ -132,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userMeta = session.user.user_metadata || {};
           const assignedRole = await resolveUserRole(
             session.user.id,
-            (userMeta.role as UserRole) || 'staff'
+            (userMeta.role as UserRole) || 'admin'
           );
 
           const profile: UserProfile = {
@@ -141,9 +143,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: userMeta.full_name || session.user.email?.split('@')[0] || 'User',
             role: assignedRole,
           };
+          db.setActiveUser(session.user.id);
           setUser(profile);
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         } else if (event === 'SIGNED_OUT') {
+          db.setActiveUser(null);
           setUser(null);
           localStorage.removeItem(AUTH_STORAGE_KEY);
         }
@@ -202,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: assignedRole,
         };
 
+        db.setActiveUser(data.user.id);
         setUser(profile);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         db.logActivity('INSERT', 'user_roles', profile.id, `User signed in as ${assignedRole.toUpperCase()}`);
@@ -220,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string,
     fullName: string,
-    requestedRole: UserRole = 'staff'
+    requestedRole: UserRole = 'admin'
   ): Promise<AuthResponse> => {
     if (!isSupabaseConfigured || !supabase) {
       return {
@@ -255,6 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: assignedRole,
         };
 
+        db.setActiveUser(data.user.id);
         setUser(profile);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         db.logActivity('INSERT', 'user_roles', profile.id, `Created account as ${assignedRole.toUpperCase()}`);
@@ -285,6 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('Sign out error:', err);
     } finally {
+      db.setActiveUser(null);
       setUser(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }

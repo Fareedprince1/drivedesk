@@ -749,36 +749,63 @@ function generateSeedCandidatesAndData() {
 
 // --- LOCAL STORAGE DATA ENGINE CLASS ---
 class DriveDeskStorage {
+  public activeUserId: string | null = null;
+
   constructor() {
+    // Try to load any previously saved active user session
+    try {
+      const savedAuth = localStorage.getItem('gem_auth_user');
+      if (savedAuth) {
+        const parsed = JSON.parse(savedAuth);
+        if (parsed?.id) this.activeUserId = parsed.id;
+      }
+    } catch (e) {
+      console.error(e);
+    }
     this.ensureInitialized();
   }
 
+  public setActiveUser(userId: string | null): void {
+    this.activeUserId = userId;
+    this.ensureInitialized();
+  }
+
+  private getKey(key: string): string {
+    if (this.activeUserId) {
+      return `${key}_${this.activeUserId}`;
+    }
+    return key;
+  }
+
   ensureInitialized(force = false) {
-    if (!localStorage.getItem(STORAGE_KEYS.INIT_FLAG) || force) {
-      // Clear out legacy drivedesk_* keys
-      try {
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith('drivedesk_')) {
-            localStorage.removeItem(key);
-          }
-        });
-      } catch (e) {
-        console.error(e);
+    const initKey = this.getKey(STORAGE_KEYS.INIT_FLAG);
+    if (!localStorage.getItem(initKey) || force) {
+      // Clear out legacy drivedesk_* keys if default
+      if (!this.activeUserId) {
+        try {
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('drivedesk_')) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (e) {
+          console.error(e);
+        }
       }
 
       // Initialize with clean data (0 candidates, 0 appointments, 0 payments, 0 vehicles, 0 instructors)
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-      localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(DEFAULT_PACKAGES));
-      localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.INSTRUCTORS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_LEAVES, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.CANDIDATES, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.ENROLLMENTS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.RTO, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([]));
+      this.set(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+      this.set(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
+      this.set(STORAGE_KEYS.VEHICLES, []);
+      this.set(STORAGE_KEYS.INSTRUCTORS, []);
+      this.set(STORAGE_KEYS.INSTRUCTOR_LEAVES, []);
+      this.set(STORAGE_KEYS.CANDIDATES, []);
+      this.set(STORAGE_KEYS.ENROLLMENTS, []);
+      this.set(STORAGE_KEYS.PAYMENTS, []);
+      this.set(STORAGE_KEYS.APPOINTMENTS, []);
+      this.set(STORAGE_KEYS.RTO, []);
+      this.set(STORAGE_KEYS.EXPENSES, []);
+      this.set(STORAGE_KEYS.NOTES, []);
 
       const defaultHols: Holiday[] = [
         { id: 'hol-1', date: '2026-10-02', description: 'Gandhi Jayanti', created_at: '2026-01-01T00:00:00Z' },
@@ -786,7 +813,7 @@ class DriveDeskStorage {
         { id: 'hol-3', date: '2026-11-01', description: 'Kannada Rajyotsava', created_at: '2026-01-01T00:00:00Z' },
         { id: 'hol-4', date: '2026-11-08', description: 'Deepavali', created_at: '2026-01-01T00:00:00Z' },
       ];
-      localStorage.setItem(STORAGE_KEYS.HOLIDAYS, JSON.stringify(defaultHols));
+      this.set(STORAGE_KEYS.HOLIDAYS, defaultHols);
 
       const initialActivity: ActivityLogItem[] = [
         {
@@ -800,8 +827,8 @@ class DriveDeskStorage {
           created_at: new Date().toISOString(),
         },
       ];
-      localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOG, JSON.stringify(initialActivity));
-      localStorage.setItem(STORAGE_KEYS.INIT_FLAG, 'true');
+      this.set(STORAGE_KEYS.ACTIVITY_LOG, initialActivity);
+      localStorage.setItem(initKey, 'true');
     }
   }
 
@@ -813,15 +840,15 @@ class DriveDeskStorage {
   // Load sample demo data if the user wishes to preview realistic records
   loadDemoData() {
     const seed = generateSeedCandidatesAndData();
-    localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(DEFAULT_VEHICLES));
-    localStorage.setItem(STORAGE_KEYS.INSTRUCTORS, JSON.stringify(DEFAULT_INSTRUCTORS));
-    localStorage.setItem(STORAGE_KEYS.CANDIDATES, JSON.stringify(seed.candidates));
-    localStorage.setItem(STORAGE_KEYS.ENROLLMENTS, JSON.stringify(seed.enrollments));
-    localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(seed.payments));
-    localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(seed.appointments));
-    localStorage.setItem(STORAGE_KEYS.RTO, JSON.stringify(seed.rtoList));
-    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(seed.defaultExpenses));
-    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(seed.notesList));
+    this.set(STORAGE_KEYS.VEHICLES, DEFAULT_VEHICLES);
+    this.set(STORAGE_KEYS.INSTRUCTORS, DEFAULT_INSTRUCTORS);
+    this.set(STORAGE_KEYS.CANDIDATES, seed.candidates);
+    this.set(STORAGE_KEYS.ENROLLMENTS, seed.enrollments);
+    this.set(STORAGE_KEYS.PAYMENTS, seed.payments);
+    this.set(STORAGE_KEYS.APPOINTMENTS, seed.appointments);
+    this.set(STORAGE_KEYS.RTO, seed.rtoList);
+    this.set(STORAGE_KEYS.EXPENSES, seed.defaultExpenses);
+    this.set(STORAGE_KEYS.NOTES, seed.notesList);
     this.logActivity('INSERT', 'system', 'demo', 'Loaded sample demo data for testing');
   }
 
@@ -829,10 +856,11 @@ class DriveDeskStorage {
     this.clearAllData();
   }
 
-  // Generic getter / setter
+  // Generic getter / setter scoped by active admin
   private get<T>(key: string, defaultValue: T): T {
     try {
-      const item = localStorage.getItem(key);
+      const scopedKey = this.getKey(key);
+      const item = localStorage.getItem(scopedKey);
       return item ? JSON.parse(item) : defaultValue;
     } catch (e) {
       console.error(`Error reading ${key}:`, e);
@@ -842,13 +870,14 @@ class DriveDeskStorage {
 
   private set<T>(key: string, value: T): void {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const scopedKey = this.getKey(key);
+      localStorage.setItem(scopedKey, JSON.stringify(value));
     } catch (e) {
       console.error(`Error saving ${key}:`, e);
     }
   }
 
-  // --- CLOUD SYNC ENGINE (Supabase Multi-Device Persistence) ---
+  // --- CLOUD SYNC ENGINE (Supabase Multi-Device & Multi-Tenant Persistence) ---
   public async syncToCloud(
     table: string,
     action: 'insert' | 'update' | 'upsert' | 'delete',
@@ -857,18 +886,51 @@ class DriveDeskStorage {
   ): Promise<void> {
     if (!supabase) return;
     try {
-      if (action === 'insert' && payload) {
-        const { error } = await supabase.from(table).insert([payload]);
-        if (error) console.warn(`Supabase cloud insert error (${table}):`, error.message);
-      } else if (action === 'update' && id && payload) {
-        const { error } = await supabase.from(table).update(payload).eq('id', id);
-        if (error) console.warn(`Supabase cloud update error (${table}):`, error.message);
-      } else if (action === 'upsert' && payload) {
-        const { error } = await supabase.from(table).upsert([payload]);
-        if (error) console.warn(`Supabase cloud upsert error (${table}):`, error.message);
+      // Clean and attach admin_id to payload for multi-tenancy
+      let cleanPayload = payload ? { ...payload } : undefined;
+      if (cleanPayload) {
+        if (this.activeUserId) {
+          cleanPayload.admin_id = this.activeUserId;
+        }
+        if ('created_by' in cleanPayload) {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (!cleanPayload.created_by || !uuidRegex.test(cleanPayload.created_by)) {
+            cleanPayload.created_by = this.activeUserId || null;
+          }
+        }
+      }
+
+      if (action === 'insert' && cleanPayload) {
+        const { error } = await supabase.from(table).insert([cleanPayload]);
+        if (error) {
+          console.warn(`Supabase cloud insert warning (${table}):`, error.message);
+          // Fallback if admin_id column not yet created in table
+          if (error.message.includes('admin_id')) {
+            const { admin_id, ...fallbackPayload } = cleanPayload;
+            await supabase.from(table).insert([fallbackPayload]);
+          }
+        }
+      } else if (action === 'update' && id && cleanPayload) {
+        const { error } = await supabase.from(table).update(cleanPayload).eq('id', id);
+        if (error) {
+          console.warn(`Supabase cloud update warning (${table}):`, error.message);
+          if (error.message.includes('admin_id')) {
+            const { admin_id, ...fallbackPayload } = cleanPayload;
+            await supabase.from(table).update(fallbackPayload).eq('id', id);
+          }
+        }
+      } else if (action === 'upsert' && cleanPayload) {
+        const { error } = await supabase.from(table).upsert([cleanPayload]);
+        if (error) {
+          console.warn(`Supabase cloud upsert warning (${table}):`, error.message);
+          if (error.message.includes('admin_id')) {
+            const { admin_id, ...fallbackPayload } = cleanPayload;
+            await supabase.from(table).upsert([fallbackPayload]);
+          }
+        }
       } else if (action === 'delete' && id) {
         const { error } = await supabase.from(table).delete().eq('id', id);
-        if (error) console.warn(`Supabase cloud delete error (${table}):`, error.message);
+        if (error) console.warn(`Supabase cloud delete warning (${table}):`, error.message);
       }
     } catch (err) {
       console.warn(`Supabase cloud sync error (${table}):`, err);
@@ -878,84 +940,139 @@ class DriveDeskStorage {
   public async syncFromCloud(): Promise<boolean> {
     if (!supabase) return false;
     try {
-      const [
-        { data: cands },
-        { data: enrs },
-        { data: pays },
-        { data: apps },
-        { data: vehs },
-        { data: insts },
-        { data: exps },
-        { data: pkgs },
-        { data: sett },
-        { data: notes },
-        { data: rto },
-      ] = await Promise.all([
-        supabase.from('candidates').select('*').is('deleted_at', null),
-        supabase.from('enrollments').select('*'),
-        supabase.from('payments').select('*'),
-        supabase.from('appointments').select('*').is('deleted_at', null),
-        supabase.from('vehicles').select('*'),
-        supabase.from('instructors').select('*'),
-        supabase.from('expenses').select('*'),
-        supabase.from('packages').select('*'),
-        supabase.from('settings').select('*').maybeSingle(),
-        supabase.from('candidate_notes').select('*'),
-        supabase.from('rto_tracking').select('*'),
+      if (!this.activeUserId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          this.activeUserId = session.user.id;
+        }
+      }
+      const currentUid = this.activeUserId;
+
+      // Safe multi-tenant query helper
+      const queryTable = async (table: string, filterDeleted = false) => {
+        try {
+          let q = supabase!.from(table).select('*');
+          if (filterDeleted) {
+            q = q.is('deleted_at', null);
+          }
+          if (currentUid) {
+            const res = await q.eq('admin_id', currentUid);
+            if (!res.error) return res.data || [];
+          }
+          let fallback = supabase!.from(table).select('*');
+          if (filterDeleted) fallback = fallback.is('deleted_at', null);
+          const res = await fallback;
+          return res.data || [];
+        } catch {
+          return [];
+        }
+      };
+
+      const [cands, enrs, pays, apps, vehs, insts, exps, pkgs, sett, notes, rto] = await Promise.all([
+        queryTable('candidates', true),
+        queryTable('enrollments'),
+        queryTable('payments'),
+        queryTable('appointments', true),
+        queryTable('vehicles'),
+        queryTable('instructors'),
+        queryTable('expenses'),
+        queryTable('packages'),
+        supabase.from('settings').select('*').maybeSingle().then(r => r.data).catch(() => null),
+        queryTable('candidate_notes'),
+        queryTable('rto_tracking'),
       ]);
 
-      const hasCloudRecords =
-        (cands && cands.length > 0) ||
-        (vehs && vehs.length > 0) ||
-        (insts && insts.length > 0) ||
-        (pays && pays.length > 0) ||
-        (apps && apps.length > 0);
-
-      if (hasCloudRecords) {
-        if (cands) this.set(STORAGE_KEYS.CANDIDATES, cands);
-        if (enrs) this.set(STORAGE_KEYS.ENROLLMENTS, enrs);
-        if (pays) this.set(STORAGE_KEYS.PAYMENTS, pays);
-        if (apps) this.set(STORAGE_KEYS.APPOINTMENTS, apps);
-        if (vehs) this.set(STORAGE_KEYS.VEHICLES, vehs);
-        if (insts) this.set(STORAGE_KEYS.INSTRUCTORS, insts);
-        if (exps) this.set(STORAGE_KEYS.EXPENSES, exps);
-        if (notes) this.set(STORAGE_KEYS.NOTES, notes);
-        if (rto) this.set(STORAGE_KEYS.RTO, rto);
-        if (pkgs && pkgs.length > 0) this.set(STORAGE_KEYS.PACKAGES, pkgs);
-        if (sett) this.set(STORAGE_KEYS.SETTINGS, sett);
+      // --- SAFE BIDIRECTIONAL SYNC ---
+      // If cloud has records, hydrate local cache.
+      // If cloud is empty for this admin, push local records to cloud (NEVER WIPE OUT LOCAL DATA!)
+      if (cands && cands.length > 0) {
+        this.set(STORAGE_KEYS.CANDIDATES, cands);
       } else {
-        // If cloud database is empty, push local records up to cloud so other devices sync
-        const localSettings = this.getSettings();
-        const localPkgs = this.getPackages();
-        const localVehs = this.getVehicles();
-        const localInsts = this.getInstructors();
-        const localCands = this.getCandidates();
-        const localEnrs = this.getEnrollments();
-
-        if (sett) {
-          this.set(STORAGE_KEYS.SETTINGS, sett);
-        } else if (localSettings) {
-          await supabase.from('settings').upsert([localSettings]);
-        }
-
-        if (pkgs && pkgs.length > 0) {
-          this.set(STORAGE_KEYS.PACKAGES, pkgs);
-        } else if (localPkgs && localPkgs.length > 0) {
-          await supabase.from('packages').upsert(localPkgs);
-        }
-
-        if (localVehs.length > 0) {
-          await supabase.from('vehicles').upsert(localVehs);
-        }
-        if (localInsts.length > 0) {
-          await supabase.from('instructors').upsert(localInsts);
-        }
-        if (localCands.length > 0) {
-          await supabase.from('candidates').upsert(localCands);
-          if (localEnrs.length > 0) {
-            await supabase.from('enrollments').upsert(localEnrs);
+        const local = this.getCandidates();
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('candidates', 'upsert', item);
           }
         }
+      }
+
+      if (enrs && enrs.length > 0) {
+        this.set(STORAGE_KEYS.ENROLLMENTS, enrs);
+      } else {
+        const local = this.getEnrollments();
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('enrollments', 'upsert', item);
+          }
+        }
+      }
+
+      if (pays && pays.length > 0) {
+        this.set(STORAGE_KEYS.PAYMENTS, pays);
+      } else {
+        const local = this.getPayments();
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('payments', 'upsert', item);
+          }
+        }
+      }
+
+      if (apps && apps.length > 0) {
+        this.set(STORAGE_KEYS.APPOINTMENTS, apps);
+      } else {
+        const local = this.getAppointments({ includeDeleted: true });
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('appointments', 'upsert', item);
+          }
+        }
+      }
+
+      if (vehs && vehs.length > 0) {
+        this.set(STORAGE_KEYS.VEHICLES, vehs);
+      } else {
+        const local = this.getVehicles();
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('vehicles', 'upsert', item);
+          }
+        }
+      }
+
+      if (insts && insts.length > 0) {
+        this.set(STORAGE_KEYS.INSTRUCTORS, insts);
+      } else {
+        const local = this.getInstructors();
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('instructors', 'upsert', item);
+          }
+        }
+      }
+
+      if (exps && exps.length > 0) {
+        this.set(STORAGE_KEYS.EXPENSES, exps);
+      } else {
+        const local = this.getExpenses();
+        if (local.length > 0) {
+          for (const item of local) {
+            await this.syncToCloud('expenses', 'upsert', item);
+          }
+        }
+      }
+
+      if (pkgs && pkgs.length > 0) {
+        this.set(STORAGE_KEYS.PACKAGES, pkgs);
+      }
+      if (sett) {
+        this.set(STORAGE_KEYS.SETTINGS, sett);
+      }
+      if (notes && notes.length > 0) {
+        this.set(STORAGE_KEYS.NOTES, notes);
+      }
+      if (rto && rto.length > 0) {
+        this.set(STORAGE_KEYS.RTO, rto);
       }
 
       window.dispatchEvent(new Event('storage'));
@@ -1403,7 +1520,7 @@ class DriveDeskStorage {
       remarks: data.remarks || '',
       is_reversal: false,
       reverses_payment_id: null,
-      created_by: role === 'admin' ? 'Admin' : 'Staff',
+      created_by: this.activeUserId || null,
       created_at: new Date().toISOString(),
     };
 
@@ -1448,7 +1565,7 @@ class DriveDeskStorage {
       is_reversal: true,
       reverses_payment_id: original.id,
       reversal_reason: reason,
-      created_by: role === 'admin' ? 'Admin' : 'Staff',
+      created_by: this.activeUserId || null,
       created_at: new Date().toISOString(),
     };
 
@@ -1677,6 +1794,7 @@ class DriveDeskStorage {
     const newApp: Appointment = {
       ...data,
       id: generateUUID(),
+      created_by: this.activeUserId || null,
       deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
