@@ -108,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
             setUser(profile);
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
+            await db.syncFromCloud();
           }
         } else {
           if (mounted) {
@@ -204,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(profile);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         db.logActivity('INSERT', 'user_roles', profile.id, `User signed in as ${assignedRole.toUpperCase()}`);
+        await db.syncFromCloud();
         return { success: true };
       }
 
@@ -256,6 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(profile);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         db.logActivity('INSERT', 'user_roles', profile.id, `Created account as ${assignedRole.toUpperCase()}`);
+        await db.syncFromCloud();
         return {
           success: true,
           message: 'Account created and signed in successfully!',

@@ -20,6 +20,18 @@ import type {
   CandidateWithStats,
   UserRole,
 } from '../types';
+import { supabase } from './supabase';
+
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 const STORAGE_KEYS = {
   SETTINGS: 'gem_settings',
@@ -836,6 +848,125 @@ class DriveDeskStorage {
     }
   }
 
+  // --- CLOUD SYNC ENGINE (Supabase Multi-Device Persistence) ---
+  public async syncToCloud(
+    table: string,
+    action: 'insert' | 'update' | 'upsert' | 'delete',
+    payload?: any,
+    id?: string
+  ): Promise<void> {
+    if (!supabase) return;
+    try {
+      if (action === 'insert' && payload) {
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) console.warn(`Supabase cloud insert error (${table}):`, error.message);
+      } else if (action === 'update' && id && payload) {
+        const { error } = await supabase.from(table).update(payload).eq('id', id);
+        if (error) console.warn(`Supabase cloud update error (${table}):`, error.message);
+      } else if (action === 'upsert' && payload) {
+        const { error } = await supabase.from(table).upsert([payload]);
+        if (error) console.warn(`Supabase cloud upsert error (${table}):`, error.message);
+      } else if (action === 'delete' && id) {
+        const { error } = await supabase.from(table).delete().eq('id', id);
+        if (error) console.warn(`Supabase cloud delete error (${table}):`, error.message);
+      }
+    } catch (err) {
+      console.warn(`Supabase cloud sync error (${table}):`, err);
+    }
+  }
+
+  public async syncFromCloud(): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const [
+        { data: cands },
+        { data: enrs },
+        { data: pays },
+        { data: apps },
+        { data: vehs },
+        { data: insts },
+        { data: exps },
+        { data: pkgs },
+        { data: sett },
+        { data: notes },
+        { data: rto },
+      ] = await Promise.all([
+        supabase.from('candidates').select('*').is('deleted_at', null),
+        supabase.from('enrollments').select('*'),
+        supabase.from('payments').select('*'),
+        supabase.from('appointments').select('*').is('deleted_at', null),
+        supabase.from('vehicles').select('*'),
+        supabase.from('instructors').select('*'),
+        supabase.from('expenses').select('*'),
+        supabase.from('packages').select('*'),
+        supabase.from('settings').select('*').maybeSingle(),
+        supabase.from('candidate_notes').select('*'),
+        supabase.from('rto_tracking').select('*'),
+      ]);
+
+      const hasCloudRecords =
+        (cands && cands.length > 0) ||
+        (vehs && vehs.length > 0) ||
+        (insts && insts.length > 0) ||
+        (pays && pays.length > 0) ||
+        (apps && apps.length > 0);
+
+      if (hasCloudRecords) {
+        if (cands) this.set(STORAGE_KEYS.CANDIDATES, cands);
+        if (enrs) this.set(STORAGE_KEYS.ENROLLMENTS, enrs);
+        if (pays) this.set(STORAGE_KEYS.PAYMENTS, pays);
+        if (apps) this.set(STORAGE_KEYS.APPOINTMENTS, apps);
+        if (vehs) this.set(STORAGE_KEYS.VEHICLES, vehs);
+        if (insts) this.set(STORAGE_KEYS.INSTRUCTORS, insts);
+        if (exps) this.set(STORAGE_KEYS.EXPENSES, exps);
+        if (notes) this.set(STORAGE_KEYS.NOTES, notes);
+        if (rto) this.set(STORAGE_KEYS.RTO, rto);
+        if (pkgs && pkgs.length > 0) this.set(STORAGE_KEYS.PACKAGES, pkgs);
+        if (sett) this.set(STORAGE_KEYS.SETTINGS, sett);
+      } else {
+        // If cloud database is empty, push local records up to cloud so other devices sync
+        const localSettings = this.getSettings();
+        const localPkgs = this.getPackages();
+        const localVehs = this.getVehicles();
+        const localInsts = this.getInstructors();
+        const localCands = this.getCandidates();
+        const localEnrs = this.getEnrollments();
+
+        if (sett) {
+          this.set(STORAGE_KEYS.SETTINGS, sett);
+        } else if (localSettings) {
+          await supabase.from('settings').upsert([localSettings]);
+        }
+
+        if (pkgs && pkgs.length > 0) {
+          this.set(STORAGE_KEYS.PACKAGES, pkgs);
+        } else if (localPkgs && localPkgs.length > 0) {
+          await supabase.from('packages').upsert(localPkgs);
+        }
+
+        if (localVehs.length > 0) {
+          await supabase.from('vehicles').upsert(localVehs);
+        }
+        if (localInsts.length > 0) {
+          await supabase.from('instructors').upsert(localInsts);
+        }
+        if (localCands.length > 0) {
+          await supabase.from('candidates').upsert(localCands);
+          if (localEnrs.length > 0) {
+            await supabase.from('enrollments').upsert(localEnrs);
+          }
+        }
+      }
+
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('drivedesk_sync_complete'));
+      return true;
+    } catch (err) {
+      console.warn('Sync from cloud error:', err);
+      return false;
+    }
+  }
+
   // --- ACTIVITY LOGGING ---
   logActivity(action: 'INSERT' | 'UPDATE' | 'DELETE', table: string, recordId: string, details: string, oldValues?: any, newValues?: any, role: UserRole = 'admin') {
     const logs = this.getActivityLogs();
@@ -871,6 +1002,7 @@ class DriveDeskStorage {
     const updated = { ...current, ...updates, updated_at: new Date().toISOString() };
     this.set(STORAGE_KEYS.SETTINGS, updated);
     this.logActivity('UPDATE', 'settings', String(updated.id), 'Updated school settings and business rules', current, updated, role);
+    this.syncToCloud('settings', 'upsert', updated);
     return updated;
   }
 
@@ -888,13 +1020,14 @@ class DriveDeskStorage {
     const packages = this.getPackages();
     const newPkg: Package = {
       ...pkgData,
-      id: 'pkg-' + Date.now(),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     packages.push(newPkg);
     this.set(STORAGE_KEYS.PACKAGES, packages);
     this.logActivity('INSERT', 'packages', newPkg.id, `Created package: ${newPkg.name}`, undefined, newPkg, role);
+    this.syncToCloud('packages', 'insert', newPkg);
     return newPkg;
   }
 
@@ -907,6 +1040,7 @@ class DriveDeskStorage {
     packages[idx] = updated;
     this.set(STORAGE_KEYS.PACKAGES, packages);
     this.logActivity('UPDATE', 'packages', id, `Updated package: ${updated.name}`, old, updated, role);
+    this.syncToCloud('packages', 'update', updated, id);
     return updated;
   }
 
@@ -1070,8 +1204,8 @@ class DriveDeskStorage {
     role: UserRole = 'admin'
   ): { candidate: Candidate; enrollment: Enrollment; payment?: Payment } {
     const candidateCode = this.getNextCandidateCode();
-    const candidateId = 'cand-' + Date.now();
-    const enrollmentId = 'enr-' + Date.now();
+    const candidateId = generateUUID();
+    const enrollmentId = generateUUID();
 
     const selectedPkg = this.getPackageById(packageSelection.package_id);
     const settings = this.getSettings();
@@ -1123,6 +1257,10 @@ class DriveDeskStorage {
     this.logActivity('INSERT', 'candidates', candidateId, `Added candidate ${newCandidate.full_name} (${candidateCode})`, undefined, newCandidate, role);
     this.logActivity('INSERT', 'enrollments', enrollmentId, `Enrolled ${newCandidate.full_name} in ${newEnrollment.package_name}`, undefined, newEnrollment, role);
 
+    // Sync to Supabase Cloud
+    this.syncToCloud('candidates', 'insert', newCandidate);
+    this.syncToCloud('enrollments', 'insert', newEnrollment);
+
     // Initial payment if any
     let recordedPayment: Payment | undefined = undefined;
     if (initialPayment && initialPayment.amount > 0) {
@@ -1142,7 +1280,7 @@ class DriveDeskStorage {
     // Initialize RTO Record
     const rtoRecords = this.getRTORecords();
     const newRTO: RTOTrainingRecord = {
-      id: 'rto-' + Date.now(),
+      id: generateUUID(),
       enrollment_id: enrollmentId,
       candidate_id: candidateId,
       stage: candidateData.ll_number ? 'training_ongoing' : 'll_pending',
@@ -1154,6 +1292,7 @@ class DriveDeskStorage {
     };
     rtoRecords.push(newRTO);
     this.set(STORAGE_KEYS.RTO, rtoRecords);
+    this.syncToCloud('rto_tracking', 'insert', newRTO);
 
     return { candidate: newCandidate, enrollment: newEnrollment, payment: recordedPayment };
   }
@@ -1167,6 +1306,7 @@ class DriveDeskStorage {
     candidates[idx] = updated;
     this.set(STORAGE_KEYS.CANDIDATES, candidates);
     this.logActivity('UPDATE', 'candidates', id, `Updated candidate ${updated.full_name}`, old, updated, role);
+    this.syncToCloud('candidates', 'update', updated, id);
     return updated;
   }
 
@@ -1178,6 +1318,7 @@ class DriveDeskStorage {
     candidates[idx].deleted_at = new Date().toISOString();
     this.set(STORAGE_KEYS.CANDIDATES, candidates);
     this.logActivity('DELETE', 'candidates', id, `Soft-deleted candidate ${old.full_name} (${old.candidate_code})`, old, undefined, role);
+    this.syncToCloud('candidates', 'update', { deleted_at: candidates[idx].deleted_at }, id);
   }
 
   addEnrollment(
@@ -1202,7 +1343,7 @@ class DriveDeskStorage {
     }
 
     const newEnrollment: Enrollment = {
-      id: 'enr-' + Date.now(),
+      id: generateUUID(),
       candidate_id: candidateId,
       package_id: packageSelection.package_id,
       package_name: selectedPkg?.name || 'Package',
@@ -1221,6 +1362,7 @@ class DriveDeskStorage {
     enrollments.push(newEnrollment);
     this.set(STORAGE_KEYS.ENROLLMENTS, enrollments);
     this.logActivity('INSERT', 'enrollments', newEnrollment.id, `Added enrollment for package ${newEnrollment.package_name}`, undefined, newEnrollment, role);
+    this.syncToCloud('enrollments', 'insert', newEnrollment);
     return newEnrollment;
   }
 
@@ -1251,7 +1393,7 @@ class DriveDeskStorage {
 
     const receiptNumber = this.getNextReceiptNumber();
     const newPayment: Payment = {
-      id: 'pay-' + Date.now(),
+      id: generateUUID(),
       enrollment_id: data.enrollment_id,
       candidate_id: data.candidate_id,
       amount: data.amount,
@@ -1279,6 +1421,7 @@ class DriveDeskStorage {
       newPayment,
       role
     );
+    this.syncToCloud('payments', 'insert', newPayment);
 
     return newPayment;
   }
@@ -1294,7 +1437,7 @@ class DriveDeskStorage {
 
     const receiptNumber = `${original.receipt_number}-REV`;
     const reversalPayment: Payment = {
-      id: 'pay-rev-' + Date.now(),
+      id: generateUUID(),
       enrollment_id: original.enrollment_id,
       candidate_id: original.candidate_id,
       amount: original.amount,
@@ -1322,6 +1465,7 @@ class DriveDeskStorage {
       reversalPayment,
       role
     );
+    this.syncToCloud('payments', 'insert', reversalPayment);
 
     return reversalPayment;
   }
@@ -1344,6 +1488,7 @@ class DriveDeskStorage {
     list[idx] = updated;
     this.set(STORAGE_KEYS.INSTRUCTORS, list);
     this.logActivity('UPDATE', 'instructors', id, `Updated instructor ${updated.name}`, old, updated, role);
+    this.syncToCloud('instructors', 'update', updated, id);
     return updated;
   }
 
@@ -1356,12 +1501,13 @@ class DriveDeskStorage {
     const leaves = this.getInstructorLeaves();
     const newLeave: InstructorLeave = {
       ...leave,
-      id: 'leave-' + Date.now(),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
     };
     leaves.push(newLeave);
     this.set(STORAGE_KEYS.INSTRUCTOR_LEAVES, leaves);
     this.logActivity('INSERT', 'instructor_leaves', newLeave.id, `Added leave from ${leave.from_date} to ${leave.to_date}`, undefined, newLeave, role);
+    this.syncToCloud('instructor_leaves', 'insert', newLeave);
     return newLeave;
   }
 
@@ -1374,6 +1520,24 @@ class DriveDeskStorage {
     return this.getVehicles().find((v) => v.id === id);
   }
 
+  createVehicle(
+    data: Omit<Vehicle, 'id' | 'created_at' | 'updated_at'>,
+    role: UserRole = 'admin'
+  ): Vehicle {
+    const list = this.getVehicles();
+    const newVehicle: Vehicle = {
+      ...data,
+      id: generateUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    list.push(newVehicle);
+    this.set(STORAGE_KEYS.VEHICLES, list);
+    this.logActivity('INSERT', 'vehicles', newVehicle.id, `Created vehicle ${newVehicle.registration_number}`, undefined, newVehicle, role);
+    this.syncToCloud('vehicles', 'insert', newVehicle);
+    return newVehicle;
+  }
+
   updateVehicle(id: string, updates: Partial<Vehicle>, role: UserRole = 'admin'): Vehicle {
     const list = this.getVehicles();
     const idx = list.findIndex((v) => v.id === id);
@@ -1383,6 +1547,7 @@ class DriveDeskStorage {
     list[idx] = updated;
     this.set(STORAGE_KEYS.VEHICLES, list);
     this.logActivity('UPDATE', 'vehicles', id, `Updated vehicle ${updated.registration_number}`, old, updated, role);
+    this.syncToCloud('vehicles', 'update', updated, id);
     return updated;
   }
 
@@ -1511,7 +1676,7 @@ class DriveDeskStorage {
 
     const newApp: Appointment = {
       ...data,
-      id: 'app-' + Date.now(),
+      id: generateUUID(),
       deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -1531,6 +1696,7 @@ class DriveDeskStorage {
       newApp,
       role
     );
+    this.syncToCloud('appointments', 'insert', newApp);
 
     return newApp;
   }
@@ -1557,6 +1723,7 @@ class DriveDeskStorage {
     this.set(STORAGE_KEYS.APPOINTMENTS, apps);
 
     this.logActivity('UPDATE', 'appointments', id, `Updated appointment status to ${status}`, old, updated, role);
+    this.syncToCloud('appointments', 'update', updated, id);
     return updated;
   }
 
@@ -1592,7 +1759,7 @@ class DriveDeskStorage {
 
     // Create new appointment linking back
     const newApp: Appointment = {
-      id: 'app-' + Date.now(),
+      id: generateUUID(),
       enrollment_id: original.enrollment_id,
       candidate_id: original.candidate_id,
       instructor_id: original.instructor_id,
@@ -1613,6 +1780,8 @@ class DriveDeskStorage {
     this.set(STORAGE_KEYS.APPOINTMENTS, apps);
 
     this.logActivity('UPDATE', 'appointments', original.id, `Rescheduled appointment to ${newDate} at ${newStartTime}`, original, newApp, role);
+    this.syncToCloud('appointments', 'update', { status: 'rescheduled', remarks: original.remarks, updated_at: original.updated_at }, original.id);
+    this.syncToCloud('appointments', 'insert', newApp);
     return newApp;
   }
 
@@ -1669,7 +1838,7 @@ class DriveDeskStorage {
       app,
       role
     );
-
+    this.syncToCloud('appointments', 'update', { instructor_id: newInstructorId, vehicle_id: newVehicleId, updated_at: app.updated_at }, app.id);
     return app;
   }
 
@@ -1925,12 +2094,13 @@ class DriveDeskStorage {
     const list = this.getExpenses();
     const newExpense: Expense = {
       ...data,
-      id: 'exp-' + Date.now(),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
     };
     list.unshift(newExpense);
     this.set(STORAGE_KEYS.EXPENSES, list);
     this.logActivity('INSERT', 'expenses', newExpense.id, `Recorded expense ₹${data.amount} for ${data.category}`, undefined, newExpense, role);
+    this.syncToCloud('expenses', 'insert', newExpense);
     return newExpense;
   }
 
@@ -1943,6 +2113,7 @@ class DriveDeskStorage {
     list[idx] = updated;
     this.set(STORAGE_KEYS.EXPENSES, list);
     this.logActivity('UPDATE', 'expenses', id, `Updated expense details for ${updated.category}`, old, updated, role);
+    this.syncToCloud('expenses', 'update', updated, id);
     return updated;
   }
 
@@ -1954,6 +2125,7 @@ class DriveDeskStorage {
     list.splice(idx, 1);
     this.set(STORAGE_KEYS.EXPENSES, list);
     this.logActivity('DELETE', 'expenses', id, `Deleted expense of ₹${old.amount} (${old.category})`, old, undefined, role);
+    this.syncToCloud('expenses', 'delete', undefined, id);
   }
 
   // --- NOTES ---
@@ -1966,11 +2138,12 @@ class DriveDeskStorage {
     const list = this.getCandidateNotes();
     const newNote: CandidateNote = {
       ...data,
-      id: 'note-' + Date.now(),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
     };
     list.unshift(newNote);
     this.set(STORAGE_KEYS.NOTES, list);
+    this.syncToCloud('candidate_notes', 'insert', newNote);
     return newNote;
   }
 
@@ -1981,13 +2154,14 @@ class DriveDeskStorage {
     const list = this.getInstructors();
     const newInst: Instructor = {
       ...data,
-      id: 'inst-' + Date.now(),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     list.push(newInst);
     this.set(STORAGE_KEYS.INSTRUCTORS, list);
     this.logActivity('INSERT', 'instructors', newInst.id, `Created instructor ${newInst.name}`, undefined, newInst, role);
+    this.syncToCloud('instructors', 'insert', newInst);
     return newInst;
   }
 
@@ -2017,23 +2191,6 @@ class DriveDeskStorage {
     };
   }
 
-  createVehicle(
-    data: Omit<Vehicle, 'id' | 'created_at' | 'updated_at'>,
-    role: UserRole = 'admin'
-  ): Vehicle {
-    const list = this.getVehicles();
-    const newVeh: Vehicle = {
-      ...data,
-      id: 'veh-' + Date.now(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    list.push(newVeh);
-    this.set(STORAGE_KEYS.VEHICLES, list);
-    this.logActivity('INSERT', 'vehicles', newVeh.id, `Added vehicle ${newVeh.registration_number}`, undefined, newVeh, role);
-    return newVeh;
-  }
-
   getVehicleExpenses(vehicleId: string): { expenses: Expense[]; totalCost: number } {
     const allExpenses = this.getExpenses();
     const vehicleExpenses = allExpenses.filter((e) => e.vehicle_id === vehicleId);
@@ -2051,6 +2208,7 @@ class DriveDeskStorage {
     list[idx] = updated;
     this.set(STORAGE_KEYS.RTO, list);
     this.logActivity('UPDATE', 'rto_tracking', id, `Updated RTO tracking details for candidate`, old, updated, role);
+    this.syncToCloud('rto_tracking', 'update', updated, id);
     return updated;
   }
 
@@ -2083,6 +2241,7 @@ class DriveDeskStorage {
       updated,
       role
     );
+    this.syncToCloud('rto_tracking', 'update', updated, rtoId);
 
     return updated;
   }
@@ -2120,6 +2279,7 @@ class DriveDeskStorage {
       updated,
       role
     );
+    this.syncToCloud('rto_tracking', 'update', updated, rtoId);
 
     return updated;
   }

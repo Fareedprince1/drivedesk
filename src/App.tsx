@@ -15,6 +15,43 @@ import { VehiclesPage } from './pages/vehicles/VehiclesPage';
 import { DrivingTestsPage } from './pages/rto/DrivingTestsPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
+import { db } from './lib/storage';
+import { supabase } from './lib/supabase';
+
+// Multi-device Realtime Cloud Sync Watcher
+const CloudSyncWatcher: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // 1. Initial sync on login / mount
+    db.syncFromCloud();
+
+    // 2. Sync on window focus (e.g. user switching between phone and laptop tabs)
+    const handleFocus = () => {
+      db.syncFromCloud();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // 3. Supabase Realtime broadcast channel for instant multi-device sync
+    const channel = supabase
+      ?.channel('gem_realtime_sync')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        db.syncFromCloud();
+      })
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [isAuthenticated]);
+
+  return null;
+};
 
 // Full Screen Loading Indicator while restoring Supabase session
 const FullScreenLoader: React.FC = () => (
@@ -68,6 +105,7 @@ const PublicLoginRoute: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <AuthProvider>
+      <CloudSyncWatcher />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<PublicLoginRoute />} />
