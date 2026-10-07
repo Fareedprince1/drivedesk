@@ -182,8 +182,24 @@ export const InstructorsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Main Grid: Left List (1 col) + Right Detail (2 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Grid or Empty State */}
+      {instructors.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center max-w-xl mx-auto shadow-xs space-y-4">
+          <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">No Instructors Added Yet</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Add your driving instructors with their licence numbers, working hours, and assigned vehicles to start scheduling student classes.
+          </p>
+          <button
+            onClick={handleOpenAddModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add First Instructor</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Instructors List */}
         <div className="space-y-3">
           <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
@@ -418,9 +434,10 @@ export const InstructorsPage: React.FC = () => {
                 </table>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ADD / EDIT INSTRUCTOR MODAL */}
       <Modal

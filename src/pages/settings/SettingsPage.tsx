@@ -127,13 +127,22 @@ export const SettingsPage: React.FC = () => {
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
-  const handleResetData = () => {
-    db.resetAllData();
+  const handleClearData = () => {
+    db.clearAllData();
     setPackages(db.getPackages());
     setSettings(db.getSettings());
     setActivityLogs(db.getActivityLogs());
     setIsResetConfirmOpen(false);
-    setSaveMessage('All demo data reloaded to fresh state!');
+    setSaveMessage('All operational data cleared! Clean slate ready for Gem Driving School.');
+    setTimeout(() => setSaveMessage(''), 4000);
+  };
+
+  const handleLoadDemoData = () => {
+    db.loadDemoData();
+    setPackages(db.getPackages());
+    setSettings(db.getSettings());
+    setActivityLogs(db.getActivityLogs());
+    setSaveMessage('Sample demo records loaded for preview.');
     setTimeout(() => setSaveMessage(''), 4000);
   };
 
@@ -150,7 +159,7 @@ export const SettingsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
             onClick={() => {
               const todayStr = getTodayIST();
@@ -168,20 +177,28 @@ export const SettingsPage: React.FC = () => {
                 rto: db.getRTORecords(),
                 activityLog: db.getActivityLogs(),
               };
-              exportToJSON(`DriveDesk_Full_Backup_${todayStr}.json`, backup);
+              exportToJSON(`GemDrivingSchool_Full_Backup_${todayStr}.json`, backup);
             }}
             className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition cursor-pointer shadow-xs"
           >
             <Database className="w-3.5 h-3.5 text-teal-600" />
-            <span>Export All Data (Backup)</span>
+            <span>Export Backup</span>
+          </button>
+
+          <button
+            onClick={handleLoadDemoData}
+            title="Load sample records for preview or testing"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Load Demo Data</span>
           </button>
 
           <button
             onClick={() => setIsResetConfirmOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Demo Data</span>
+            <span>Clear All Data</span>
           </button>
         </div>
       </div>
@@ -695,18 +712,18 @@ export const SettingsPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Reset Confirmation Modal */}
+      {/* Clear Confirmation Modal */}
       <Modal
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
-        title="Reset Demo Data?"
+        title="Clear All Data (Start Fresh)?"
         maxWidth="sm"
       >
         <div className="space-y-4">
-          <div className="flex items-center gap-3 text-amber-600 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-xl border border-amber-200 dark:border-amber-900">
+          <div className="flex items-center gap-3 text-rose-600 bg-rose-50 dark:bg-rose-950/40 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900">
             <AlertTriangle className="w-5 h-5 shrink-0" />
             <p className="text-xs font-medium">
-              This will reload the initial 15 candidates, 3 instructors, vehicles, appointments, and receipts to their clean seed state.
+              This will remove all candidates, appointments, payments, expenses, instructors, and vehicles so you can start with a 100% clean database for Gem Driving School.
             </p>
           </div>
           <div className="flex justify-end gap-3">
@@ -717,10 +734,10 @@ export const SettingsPage: React.FC = () => {
               Cancel
             </button>
             <button
-              onClick={handleResetData}
+              onClick={handleClearData}
               className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
             >
-              Confirm Reset
+              Confirm Clear All
             </button>
           </div>
         </div>

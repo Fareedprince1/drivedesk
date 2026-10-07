@@ -40,6 +40,7 @@ export const Dashboard: React.FC = () => {
   const instructors = db.getInstructors();
   const rtoList = db.getRTORecords();
   const notes = db.getCandidateNotes();
+  const settings = db.getSettings();
 
   // 12 Top Statistics
   const totalCandidates = candidates.length;
@@ -112,7 +113,7 @@ export const Dashboard: React.FC = () => {
               {todayAppointments.length} appointments today · {pendingPaymentsList.length} pending payments · {testsTomorrow.length > 0 ? `${testsTomorrow.length} driving tests tomorrow` : `${upcomingTests.length} upcoming driving tests`}
             </h2>
             <p className="text-xs text-teal-800 dark:text-teal-300 font-medium">
-              DriveDesk Indiranagar Academy • {formatDate(today)}
+              {settings.school_name} • {formatDate(today)}
             </p>
           </div>
         </div>

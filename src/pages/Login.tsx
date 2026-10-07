@@ -119,10 +119,10 @@ export const Login: React.FC = () => {
             <Car className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Drive<span className="text-teal-600">Desk</span>
+            Gem<span className="text-teal-600">DrivingSchool</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Admin Management Portal • Driving School System (India)
+            Admin Management Portal • Gem Driving School
           </p>
         </div>
 
@@ -240,7 +240,7 @@ export const Login: React.FC = () => {
                   required
                   value={signInEmail}
                   onChange={(e) => setSignInEmail(e.target.value)}
-                  placeholder="admin@drivedesk.in"
+                  placeholder="admin@gemdrivingschool.in"
                   className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
@@ -275,7 +275,7 @@ export const Login: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <span>Sign In to DriveDesk</span>
+                  <span>Sign In to Gem Driving School</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -297,7 +297,7 @@ export const Login: React.FC = () => {
                   required
                   value={signUpName}
                   onChange={(e) => setSignUpName(e.target.value)}
-                  placeholder="Vikram Mehta (Owner)"
+                  placeholder="Owner Name"
                   className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
@@ -314,7 +314,7 @@ export const Login: React.FC = () => {
                   required
                   value={signUpEmail}
                   onChange={(e) => setSignUpEmail(e.target.value)}
-                  placeholder="owner@drivedesk.in"
+                  placeholder="owner@gemdrivingschool.in"
                   className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>

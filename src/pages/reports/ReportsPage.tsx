@@ -240,7 +240,7 @@ export const ReportsPage: React.FC = () => {
           p.notes || '',
         ];
       });
-      exportToCSV(`DriveDesk_Revenue_${startDate}_to_${endDate}.csv`, headers, rows);
+      exportToCSV(`GemDrivingSchool_Revenue_${startDate}_to_${endDate}.csv`, headers, rows);
     } else if (activeTab === 'appointments') {
       const headers = ['Date', 'Time Slot', 'Candidate', 'Instructor', 'Vehicle', 'Status', 'Remarks'];
       const rows = filteredAppointments.map((a) => {
@@ -257,7 +257,7 @@ export const ReportsPage: React.FC = () => {
           a.remarks || '',
         ];
       });
-      exportToCSV(`DriveDesk_Appointments_${startDate}_to_${endDate}.csv`, headers, rows);
+      exportToCSV(`GemDrivingSchool_Appointments_${startDate}_to_${endDate}.csv`, headers, rows);
     } else if (activeTab === 'instructors') {
       const headers = ['Instructor Name', 'Phone', 'Total Scheduled', 'Completed Classes', 'No-Shows', 'Completion Rate %'];
       const rows = instructorStats.map((s) => [
@@ -268,7 +268,7 @@ export const ReportsPage: React.FC = () => {
         s.absent,
         `${s.completionRate}%`,
       ]);
-      exportToCSV(`DriveDesk_Instructors_Utilization_${startDate}_to_${endDate}.csv`, headers, rows);
+      exportToCSV(`GemDrivingSchool_Instructors_Utilization_${startDate}_to_${endDate}.csv`, headers, rows);
     } else if (activeTab === 'vehicles') {
       const headers = ['Vehicle Name', 'Reg Number', 'Fuel Cost (INR)', 'Service/Repair (INR)', 'Total Expenses (INR)', 'Classes Held', 'Cost Per Class (INR)'];
       const rows = vehicleStats.map((s) => [
@@ -280,7 +280,7 @@ export const ReportsPage: React.FC = () => {
         s.completedClasses,
         s.costPerClass,
       ]);
-      exportToCSV(`DriveDesk_Vehicle_Costs_${startDate}_to_${endDate}.csv`, headers, rows);
+      exportToCSV(`GemDrivingSchool_Vehicle_Costs_${startDate}_to_${endDate}.csv`, headers, rows);
     } else if (activeTab === 'pending') {
       const headers = ['Candidate Code', 'Candidate Name', 'Mobile', 'Package', 'Fee Agreed (INR)', 'Paid (INR)', 'Balance Due (INR)', 'Last Payment Date'];
       const rows = pendingBalances.map((item) => [
@@ -293,7 +293,7 @@ export const ReportsPage: React.FC = () => {
         item.balance,
         formatDate(item.lastPaymentDate),
       ]);
-      exportToCSV(`DriveDesk_Pending_Balances_${todayStr}.csv`, headers, rows);
+      exportToCSV(`GemDrivingSchool_Pending_Balances_${todayStr}.csv`, headers, rows);
     }
   };
 
@@ -312,7 +312,7 @@ export const ReportsPage: React.FC = () => {
       rto: db.getRTORecords(),
       activityLog: db.getActivityLogs(),
     };
-    exportToJSON(`DriveDesk_Full_Backup_${todayStr}.json`, backupData);
+    exportToJSON(`GemDrivingSchool_Full_Backup_${todayStr}.json`, backupData);
   };
 
   return (
@@ -440,7 +440,7 @@ export const ReportsPage: React.FC = () => {
 
       {/* PRINT HEADER (Visible only in print) */}
       <div className="hidden print:block pb-4 mb-4 border-b border-slate-300">
-        <h2 className="text-xl font-bold text-slate-900">DriveDesk — Driving School Management Report</h2>
+        <h2 className="text-xl font-bold text-slate-900">Gem Driving School — Management Report</h2>
         <div className="text-xs text-slate-600 mt-1">
           Period: {formatDate(startDate)} to {formatDate(endDate)} • Generated on {formatDate(todayStr)}
         </div>

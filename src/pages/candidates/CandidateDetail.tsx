@@ -190,7 +190,7 @@ export const CandidateDetail: React.FC = () => {
   };
 
   // WhatsApp reminder message
-  const reminderMessage = `Dear ${candidate.full_name}, greeting from DriveDesk Driving Academy! Your pending balance is ${formatINR(
+  const reminderMessage = `Dear ${candidate.full_name}, greetings from ${db.getSettings().school_name}! Your pending balance is ${formatINR(
     stats?.balance || 0
   )}. Kindly clear the dues before your next driving class. Thank you!`;
 

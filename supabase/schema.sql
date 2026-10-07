@@ -17,11 +17,11 @@ CREATE TABLE IF NOT EXISTS user_roles (
 -- 2. SCHOOL SETTINGS
 CREATE TABLE IF NOT EXISTS settings (
     id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-    school_name VARCHAR(150) NOT NULL DEFAULT 'DriveDesk Driving Academy',
-    address TEXT NOT NULL DEFAULT '42, MG Road, Indiranagar, Bengaluru, Karnataka 560038',
+    school_name VARCHAR(150) NOT NULL DEFAULT 'Gem Driving School',
+    address TEXT NOT NULL DEFAULT 'Indiranagar, Bengaluru, Karnataka 560038',
     phone VARCHAR(20) NOT NULL DEFAULT '+91 98765 43210',
-    gst_number VARCHAR(30) DEFAULT '29ABCDE1234F1Z5',
-    receipt_footer_text TEXT DEFAULT 'Thank you for choosing DriveDesk. Safe driving begins here! Terms & conditions apply.',
+    gst_number VARCHAR(30) DEFAULT '',
+    receipt_footer_text TEXT DEFAULT 'Thank you for choosing Gem Driving School. Safe driving begins here! Terms & conditions apply.',
     slot_length INT NOT NULL DEFAULT 30,
     cancellation_cutoff_hours INT NOT NULL DEFAULT 3,
     absent_consumes_class BOOLEAN NOT NULL DEFAULT true,
@@ -405,7 +405,7 @@ CREATE TRIGGER on_auth_user_created
 -- SEED INITIAL DATA
 -- =====================================================================
 INSERT INTO settings (id, school_name, address, phone, gst_number, receipt_footer_text, slot_length, cancellation_cutoff_hours, absent_consumes_class, default_package_validity_days)
-VALUES (1, 'DriveDesk Driving Academy', '42, MG Road, Indiranagar, Bengaluru, Karnataka 560038', '+91 98765 43210', '29ABCDE1234F1Z5', 'Thank you for choosing DriveDesk. Safe driving begins here! Terms & conditions apply.', 30, 3, true, 90)
+VALUES (1, 'Gem Driving School', 'Indiranagar, Bengaluru, Karnataka 560038', '+91 98765 43210', '', 'Thank you for choosing Gem Driving School. Safe driving begins here! Terms & conditions apply.', 30, 3, true, 90)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO packages (name, vehicle_type, total_classes, fee, validity_days, description, is_active)

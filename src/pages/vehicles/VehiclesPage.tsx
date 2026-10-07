@@ -179,8 +179,24 @@ export const VehiclesPage: React.FC = () => {
         )}
       </div>
 
-      {/* Grid: Left Column Vehicles List + Right Column Vehicle Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Grid or Empty State */}
+      {vehicles.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-12 text-center max-w-xl mx-auto shadow-xs space-y-4">
+          <Car className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">No Vehicles Added Yet</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Register your training cars and two-wheelers to track insurance, PUC, and fitness expiries, and assign them to driving appointments.
+          </p>
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add First Vehicle</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Vehicles List */}
         <div className="space-y-3">
           <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
@@ -478,9 +494,10 @@ export const VehiclesPage: React.FC = () => {
                 </table>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ADD / EDIT VEHICLE MODAL */}
       <Modal

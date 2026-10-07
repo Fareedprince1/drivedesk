@@ -22,31 +22,31 @@ import type {
 } from '../types';
 
 const STORAGE_KEYS = {
-  SETTINGS: 'drivedesk_settings',
-  PACKAGES: 'drivedesk_packages',
-  CANDIDATES: 'drivedesk_candidates',
-  ENROLLMENTS: 'drivedesk_enrollments',
-  PAYMENTS: 'drivedesk_payments',
-  INSTRUCTORS: 'drivedesk_instructors',
-  INSTRUCTOR_LEAVES: 'drivedesk_leaves',
-  VEHICLES: 'drivedesk_vehicles',
-  APPOINTMENTS: 'drivedesk_appointments',
-  RTO: 'drivedesk_rto',
-  EXPENSES: 'drivedesk_expenses',
-  NOTES: 'drivedesk_notes',
-  HOLIDAYS: 'drivedesk_holidays',
-  ACTIVITY_LOG: 'drivedesk_activity_log',
-  INIT_FLAG: 'drivedesk_initialized_v1',
+  SETTINGS: 'gem_settings',
+  PACKAGES: 'gem_packages',
+  CANDIDATES: 'gem_candidates',
+  ENROLLMENTS: 'gem_enrollments',
+  PAYMENTS: 'gem_payments',
+  INSTRUCTORS: 'gem_instructors',
+  INSTRUCTOR_LEAVES: 'gem_leaves',
+  VEHICLES: 'gem_vehicles',
+  APPOINTMENTS: 'gem_appointments',
+  RTO: 'gem_rto',
+  EXPENSES: 'gem_expenses',
+  NOTES: 'gem_notes',
+  HOLIDAYS: 'gem_holidays',
+  ACTIVITY_LOG: 'gem_activity_log',
+  INIT_FLAG: 'gem_clean_database_v3',
 };
 
-// --- DEFAULT SEED DATA ---
+// --- DEFAULT CLEAN DATA ---
 export const DEFAULT_SETTINGS: SchoolSettings = {
   id: 1,
-  school_name: 'DriveDesk Driving Academy',
-  address: '42, 100ft Road, Indiranagar, Bengaluru, Karnataka 560038',
+  school_name: 'Gem Driving School',
+  address: 'Indiranagar, Bengaluru, Karnataka 560038',
   phone: '+91 98765 43210',
-  gst_number: '29ABCDE1234F1Z5',
-  receipt_footer_text: 'Thank you for choosing DriveDesk. Safe driving begins here! Terms & conditions apply.',
+  gst_number: '',
+  receipt_footer_text: 'Thank you for choosing Gem Driving School. Safe driving begins here! Terms & conditions apply.',
   slot_length: 30,
   cancellation_cutoff_hours: 3,
   absent_consumes_class: true,
@@ -743,20 +743,38 @@ class DriveDeskStorage {
 
   ensureInitialized(force = false) {
     if (!localStorage.getItem(STORAGE_KEYS.INIT_FLAG) || force) {
-      const seed = generateSeedCandidatesAndData();
+      // Clear out legacy drivedesk_* keys
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('drivedesk_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Initialize with clean data (0 candidates, 0 appointments, 0 payments, 0 vehicles, 0 instructors)
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
       localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(DEFAULT_PACKAGES));
-      localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(DEFAULT_VEHICLES));
-      localStorage.setItem(STORAGE_KEYS.INSTRUCTORS, JSON.stringify(DEFAULT_INSTRUCTORS));
+      localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.INSTRUCTORS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_LEAVES, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.CANDIDATES, JSON.stringify(seed.candidates));
-      localStorage.setItem(STORAGE_KEYS.ENROLLMENTS, JSON.stringify(seed.enrollments));
-      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(seed.payments));
-      localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(seed.appointments));
-      localStorage.setItem(STORAGE_KEYS.RTO, JSON.stringify(seed.rtoList));
-      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(seed.defaultExpenses));
-      localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(seed.notesList));
-      localStorage.setItem(STORAGE_KEYS.HOLIDAYS, JSON.stringify(seed.defaultHolidays));
+      localStorage.setItem(STORAGE_KEYS.CANDIDATES, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.ENROLLMENTS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.RTO, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([]));
+
+      const defaultHols: Holiday[] = [
+        { id: 'hol-1', date: '2026-10-02', description: 'Gandhi Jayanti', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'hol-2', date: '2026-10-20', description: 'Ayudha Pooja / Vijayadashami', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'hol-3', date: '2026-11-01', description: 'Kannada Rajyotsava', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'hol-4', date: '2026-11-08', description: 'Deepavali', created_at: '2026-01-01T00:00:00Z' },
+      ];
+      localStorage.setItem(STORAGE_KEYS.HOLIDAYS, JSON.stringify(defaultHols));
 
       const initialActivity: ActivityLogItem[] = [
         {
@@ -766,7 +784,7 @@ class DriveDeskStorage {
           table_name: 'system',
           record_id: 'seed-0',
           action: 'INSERT',
-          details: 'Initialized DriveDesk database with realistic driving school seed data',
+          details: 'Initialized Gem Driving School with clean database',
           created_at: new Date().toISOString(),
         },
       ];
@@ -775,8 +793,28 @@ class DriveDeskStorage {
     }
   }
 
-  resetAllData() {
+  // Clear all operational records to return to a 100% clean slate
+  clearAllData() {
     this.ensureInitialized(true);
+  }
+
+  // Load sample demo data if the user wishes to preview realistic records
+  loadDemoData() {
+    const seed = generateSeedCandidatesAndData();
+    localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(DEFAULT_VEHICLES));
+    localStorage.setItem(STORAGE_KEYS.INSTRUCTORS, JSON.stringify(DEFAULT_INSTRUCTORS));
+    localStorage.setItem(STORAGE_KEYS.CANDIDATES, JSON.stringify(seed.candidates));
+    localStorage.setItem(STORAGE_KEYS.ENROLLMENTS, JSON.stringify(seed.enrollments));
+    localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(seed.payments));
+    localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(seed.appointments));
+    localStorage.setItem(STORAGE_KEYS.RTO, JSON.stringify(seed.rtoList));
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(seed.defaultExpenses));
+    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(seed.notesList));
+    this.logActivity('INSERT', 'system', 'demo', 'Loaded sample demo data for testing');
+  }
+
+  resetAllData() {
+    this.clearAllData();
   }
 
   // Generic getter / setter
@@ -877,13 +915,13 @@ class DriveDeskStorage {
     const candidates = this.getCandidates(true); // include soft-deleted
     let maxNum = 0;
     candidates.forEach((c) => {
-      const match = c.candidate_code.match(/DS(\d+)/);
+      const match = c.candidate_code.match(/(?:GDS|DS)(\d+)/);
       if (match) {
         const num = parseInt(match[1], 10);
         if (num > maxNum) maxNum = num;
       }
     });
-    return `DS${String(maxNum + 1).padStart(4, '0')}`;
+    return `GDS${String(maxNum + 1).padStart(4, '0')}`;
   }
 
   getNextReceiptNumber(): string {

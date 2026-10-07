@@ -255,7 +255,7 @@ export const ExpensesPage: React.FC = () => {
       ];
     });
 
-    exportToCSV(`DriveDesk_Expenses_${today}.csv`, headers, rows);
+    exportToCSV(`GemDrivingSchool_Expenses_${today}.csv`, headers, rows);
   };
 
   return (

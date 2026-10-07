@@ -49,11 +49,11 @@ export const Sidebar: React.FC = () => {
         <div>
           <div className="flex items-center gap-1.5">
             <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-              Drive<span className="text-teal-600 dark:text-teal-400">Desk</span>
+              Gem<span className="text-teal-600 dark:text-teal-400">DrivingSchool</span>
             </span>
           </div>
           <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
-            School Admin System
+            Admin Management Portal
           </span>
         </div>
       </div>
@@ -116,7 +116,7 @@ export const Sidebar: React.FC = () => {
 
       {/* Footer Info */}
       <div className="p-4 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 text-center">
-        DriveDesk v1.0 • India Edition
+        GemDrivingSchool v1.0 • India Edition
       </div>
     </aside>
   );

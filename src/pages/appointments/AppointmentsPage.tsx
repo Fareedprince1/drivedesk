@@ -407,9 +407,27 @@ export const AppointmentsPage: React.FC = () => {
       </div>
 
       {/* DAY VIEW GRID (Default & Most Used) */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto max-h-[70vh]">
-          <table className="w-full text-left text-xs border-collapse">
+      {instructors.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-xs">
+          <div className="max-w-md mx-auto space-y-3">
+            <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">No Instructors Added Yet</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              The calendar grid schedules 30-minute lessons under active instructors. Add your driving school's instructors to begin booking classes.
+            </p>
+            <button
+              onClick={() => navigate('/instructors')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Your First Instructor</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+          <div className="overflow-x-auto max-h-[70vh]">
+            <table className="w-full text-left text-xs border-collapse">
             <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold sticky top-0 z-10">
               <tr>
                 <th className="py-3 px-4 w-28 border-r border-slate-200 dark:border-slate-800">
@@ -510,6 +528,7 @@ export const AppointmentsPage: React.FC = () => {
           </table>
         </div>
       </div>
+    )}
 
       {/* CREATE APPOINTMENT MODAL */}
       <Modal

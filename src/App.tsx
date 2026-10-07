@@ -21,7 +21,7 @@ const FullScreenLoader: React.FC = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300">
     <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4" />
     <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-      Loading DriveDesk...
+      Loading Gem Driving School...
     </div>
   </div>
 );

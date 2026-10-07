@@ -244,8 +244,23 @@ export const CandidatesList: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {paginatedCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
-                    No candidates found matching your filters.
+                  <td colSpan={8} className="text-center py-14 text-slate-400">
+                    <div className="max-w-xs mx-auto space-y-3">
+                      <Users className="w-9 h-9 text-slate-300 dark:text-slate-600 mx-auto" />
+                      <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">
+                        No candidates enrolled yet
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Enroll your first driving student to begin tracking lessons, packages, and payments.
+                      </p>
+                      <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add First Candidate</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -314,7 +329,7 @@ export const CandidatesList: React.FC = () => {
                           <a
                             href={getWhatsAppUrl(
                               cand.mobile,
-                              `Hello ${cand.full_name}, greetings from DriveDesk Driving Academy!`
+                              `Hello ${cand.full_name}, greetings from ${db.getSettings().school_name}!`
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
