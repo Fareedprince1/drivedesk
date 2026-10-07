@@ -2372,6 +2372,16 @@ class DriveDeskStorage {
     return newNote;
   }
 
+  toggleNoteDone(noteId: string, role: UserRole = 'admin'): CandidateNote | undefined {
+    const list = this.getCandidateNotes();
+    const note = list.find((n) => n.id === noteId);
+    if (!note) return undefined;
+    note.is_done = !note.is_done;
+    this.set(STORAGE_KEYS.NOTES, list);
+    this.syncToCloud('candidate_notes', 'update', { is_done: note.is_done }, noteId);
+    return note;
+  }
+
   createInstructor(
     data: Omit<Instructor, 'id' | 'created_at' | 'updated_at'>,
     role: UserRole = 'admin'

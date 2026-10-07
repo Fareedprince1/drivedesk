@@ -886,7 +886,7 @@ export const CandidateDetail: React.FC = () => {
         isOpen={isPayModalOpen}
         onClose={() => setIsPayModalOpen(false)}
         title="Record Fee Payment"
-        description={`Record installment for ${candidate.full_name} (${selectedEnrollment.package_name})`}
+        description={`Record installment for ${candidate.full_name} (${selectedEnrollment?.package_name || 'Driving Course'})`}
       >
         <form onSubmit={handleRecordPayment} className="space-y-4">
           {payError && (
@@ -908,7 +908,7 @@ export const CandidateDetail: React.FC = () => {
               className="w-full px-3.5 py-2.5 text-base font-extrabold font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             <span className="text-xs text-slate-400">
-              Current Outstanding Balance: {formatINR(stats?.balance)}
+              Current Outstanding Balance: {formatINR(stats?.balance || 0)}
             </span>
           </div>
 
@@ -1025,7 +1025,7 @@ export const CandidateDetail: React.FC = () => {
               <div className="flex justify-between text-xs text-slate-500">
                 <span>Remaining Course Balance:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {formatINR(stats?.balance)}
+                  {formatINR(stats?.balance || 0)}
                 </span>
               </div>
 
@@ -1042,7 +1042,7 @@ export const CandidateDetail: React.FC = () => {
                     selectedReceipt.amount
                   )} (Receipt ${selectedReceipt.receipt_number}) on ${formatDate(
                     selectedReceipt.payment_date
-                  )}. Balance: ${formatINR(stats?.balance)}.`
+                  )}. Balance: ${formatINR(stats?.balance || 0)}.`
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
