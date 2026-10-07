@@ -843,7 +843,12 @@ const DB_ALLOWED_COLUMNS: Record<string, string[]> = {
   ],
 };
 
-function sanitizePayload(table: string, payload: any, activeUserId?: string | null): any {
+function sanitizePayload(
+  table: string,
+  payload: any,
+  activeUserId?: string | null,
+  activeSchoolAdminId?: string | null
+): any {
   if (!payload) return payload;
   const allowed = DB_ALLOWED_COLUMNS[table];
   const cleaned: Record<string, any> = {};
@@ -857,12 +862,19 @@ function sanitizePayload(table: string, payload: any, activeUserId?: string | nu
     Object.assign(cleaned, payload);
   }
 
-  // Universal shared driving school access between Admin & Staff:
-  cleaned.admin_id = null;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const targetAdminId = activeSchoolAdminId || activeUserId;
+
+  // Stamped with school admin ID so both Admin and Staff belonging to this school share live access
+  if ('admin_id' in DB_ALLOWED_COLUMNS[table] || allowed?.includes('admin_id')) {
+    if (targetAdminId && uuidRegex.test(targetAdminId)) {
+      cleaned.admin_id = targetAdminId;
+    } else {
+      cleaned.admin_id = null;
+    }
+  }
 
   // Clean UUID / nullable foreign keys to prevent syntax error:
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
   if ('created_by' in cleaned) {
     if (!cleaned.created_by || !uuidRegex.test(cleaned.created_by)) {
       cleaned.created_by = (activeUserId && uuidRegex.test(activeUserId)) ? activeUserId : null;
@@ -887,6 +899,7 @@ function sanitizePayload(table: string, payload: any, activeUserId?: string | nu
 // --- LOCAL STORAGE DATA ENGINE CLASS ---
 class DriveDeskStorage {
   public activeUserId: string | null = null;
+  public activeSchoolAdminId: string | null = null;
 
   constructor() {
     try {
@@ -894,6 +907,8 @@ class DriveDeskStorage {
       if (savedAuth) {
         const parsed = JSON.parse(savedAuth);
         if (parsed?.id) this.activeUserId = parsed.id;
+        if (parsed?.schoolAdminId) this.activeSchoolAdminId = parsed.schoolAdminId;
+        else if (parsed?.role === 'admin' && parsed?.id) this.activeSchoolAdminId = parsed.id;
       }
     } catch (e) {
       console.error(e);
@@ -901,8 +916,9 @@ class DriveDeskStorage {
     this.ensureInitialized();
   }
 
-  public setActiveUser(userId: string | null): void {
+  public setActiveUser(userId: string | null, schoolAdminId?: string | null): void {
     this.activeUserId = userId;
+    this.activeSchoolAdminId = schoolAdminId || (userId ? this.activeSchoolAdminId || userId : null);
   }
 
   ensureInitialized(force = false) {
@@ -1009,7 +1025,9 @@ class DriveDeskStorage {
   ): Promise<{ success: boolean; error?: string }> {
     if (!supabase) return { success: false, error: 'Supabase client not initialized' };
     try {
-      const cleanPayload = payload ? sanitizePayload(table, payload, this.activeUserId) : undefined;
+      const cleanPayload = payload
+        ? sanitizePayload(table, payload, this.activeUserId, this.activeSchoolAdminId)
+        : undefined;
 
       if (action === 'insert' && cleanPayload) {
         const { error } = await supabase.from(table).insert([cleanPayload]);
@@ -1053,6 +1071,9 @@ class DriveDeskStorage {
           if (filterDeleted) {
             q = q.is('deleted_at', null);
           }
+          if (this.activeSchoolAdminId) {
+            q = q.or(`admin_id.eq.${this.activeSchoolAdminId},admin_id.is.null`);
+          }
           const res = await q;
           return res.data || [];
         } catch {
@@ -1077,7 +1098,9 @@ class DriveDeskStorage {
       // Seed Packages if empty in cloud
       if (!pkgs || pkgs.length === 0) {
         try {
-          await supabase.from('packages').upsert(DEFAULT_PACKAGES.map((p) => ({ ...p, admin_id: null })));
+          await supabase.from('packages').upsert(
+            DEFAULT_PACKAGES.map((p) => ({ ...p, admin_id: this.activeSchoolAdminId || null }))
+          );
         } catch (e) {
           console.warn(e);
         }
@@ -1089,7 +1112,9 @@ class DriveDeskStorage {
       // Seed Settings if empty in cloud
       if (!sett) {
         try {
-          await supabase.from('settings').upsert([{ ...DEFAULT_SETTINGS, admin_id: null }]);
+          await supabase.from('settings').upsert([
+            { ...DEFAULT_SETTINGS, admin_id: this.activeSchoolAdminId || null }
+          ]);
         } catch (e) {
           console.warn(e);
         }
@@ -1098,90 +1123,16 @@ class DriveDeskStorage {
         this.set(STORAGE_KEYS.SETTINGS, sett);
       }
 
-      // Safe Bidirectional Hydration for School Records
-      if (cands && cands.length > 0) {
-        this.set(STORAGE_KEYS.CANDIDATES, cands);
-      } else {
-        const local = this.getCandidates();
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('candidates', 'upsert', item);
-          }
-        }
-      }
-
-      if (enrs && enrs.length > 0) {
-        this.set(STORAGE_KEYS.ENROLLMENTS, enrs);
-      } else {
-        const local = this.getEnrollments();
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('enrollments', 'upsert', item);
-          }
-        }
-      }
-
-      if (pays && pays.length > 0) {
-        this.set(STORAGE_KEYS.PAYMENTS, pays);
-      } else {
-        const local = this.getPayments();
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('payments', 'upsert', item);
-          }
-        }
-      }
-
-      if (apps && apps.length > 0) {
-        this.set(STORAGE_KEYS.APPOINTMENTS, apps);
-      } else {
-        const local = this.getAppointments({ includeDeleted: true });
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('appointments', 'upsert', item);
-          }
-        }
-      }
-
-      if (vehs && vehs.length > 0) {
-        this.set(STORAGE_KEYS.VEHICLES, vehs);
-      } else {
-        const local = this.getVehicles();
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('vehicles', 'upsert', item);
-          }
-        }
-      }
-
-      if (insts && insts.length > 0) {
-        this.set(STORAGE_KEYS.INSTRUCTORS, insts);
-      } else {
-        const local = this.getInstructors();
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('instructors', 'upsert', item);
-          }
-        }
-      }
-
-      if (exps && exps.length > 0) {
-        this.set(STORAGE_KEYS.EXPENSES, exps);
-      } else {
-        const local = this.getExpenses();
-        if (local.length > 0) {
-          for (const item of local) {
-            await this.syncToCloud('expenses', 'upsert', item);
-          }
-        }
-      }
-
-      if (notes && notes.length > 0) {
-        this.set(STORAGE_KEYS.NOTES, notes);
-      }
-      if (rto && rto.length > 0) {
-        this.set(STORAGE_KEYS.RTO, rto);
-      }
+      // Direct cloud hydration - guarantees exact sync across all devices and incognito
+      this.set(STORAGE_KEYS.CANDIDATES, cands || []);
+      this.set(STORAGE_KEYS.ENROLLMENTS, enrs || []);
+      this.set(STORAGE_KEYS.PAYMENTS, pays || []);
+      this.set(STORAGE_KEYS.APPOINTMENTS, apps || []);
+      this.set(STORAGE_KEYS.VEHICLES, vehs && vehs.length > 0 ? vehs : DEFAULT_VEHICLES);
+      this.set(STORAGE_KEYS.INSTRUCTORS, insts && insts.length > 0 ? insts : DEFAULT_INSTRUCTORS);
+      this.set(STORAGE_KEYS.EXPENSES, exps || []);
+      this.set(STORAGE_KEYS.NOTES, notes || []);
+      this.set(STORAGE_KEYS.RTO, rto || []);
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('drivedesk_sync_complete'));

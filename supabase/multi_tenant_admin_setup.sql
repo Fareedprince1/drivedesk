@@ -1,5 +1,5 @@
 -- =====================================================================
--- GEM DRIVING SCHOOL - MULTI-TENANT ISOLATED DATABASE & CLOUD SYNC SETUP
+-- GEM DRIVING SCHOOL - MULTI-TENANT ADMIN & STAFF CLOUD SETUP
 -- Run this complete SQL script in your Supabase Dashboard:
 -- 1. Go to https://supabase.com/dashboard/project/bjdjjnkqzkopfyqisspx/sql
 -- 2. Paste this entire script into SQL Editor
@@ -10,7 +10,29 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ---------------------------------------------------------------------
--- 1. ADD admin_id TO ALL OPERATIONAL TABLES FOR TENANT ISOLATION
+-- 1. ENHANCE user_roles FOR ADMIN & STAFF LINKING
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.user_roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'staff')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS school_admin_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS admin_email VARCHAR(255);
+
+-- Enable RLS on user_roles and allow authenticated users to read and manage
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Open user_roles for authenticated" ON public.user_roles;
+CREATE POLICY "Open user_roles for authenticated" ON public.user_roles
+    FOR ALL TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+-- ---------------------------------------------------------------------
+-- 2. ADD admin_id TO ALL OPERATIONAL TABLES FOR TENANT ISOLATION
 -- ---------------------------------------------------------------------
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS admin_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid();
 ALTER TABLE packages ADD COLUMN IF NOT EXISTS admin_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid();
@@ -33,9 +55,8 @@ ALTER TABLE payments ALTER COLUMN created_by DROP NOT NULL;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
--- 2. MULTI-TENANT UNIQUE CONSTRAINTS (Unique per Admin, not global)
+-- 3. MULTI-TENANT UNIQUE CONSTRAINTS (Unique per School Admin)
 -- ---------------------------------------------------------------------
--- Candidate codes (e.g. GDS0001) should be unique per admin workspace
 ALTER TABLE candidates DROP CONSTRAINT IF EXISTS candidates_candidate_code_key;
 DO $$
 BEGIN
@@ -45,7 +66,6 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- Payment receipt numbers (e.g. R-1001) should be unique per admin workspace
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_receipt_number_key;
 DO $$
 BEGIN
@@ -55,7 +75,6 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- Vehicle registration numbers unique per admin workspace
 ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_registration_number_key;
 DO $$
 BEGIN
@@ -66,26 +85,28 @@ EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
 -- ---------------------------------------------------------------------
--- 3. OPEN ACCESS TO user_roles (Prevent 42501 RLS Block on Role Management)
+-- 4. HELPER FUNCTION TO RESOLVE CURRENT USER'S SCHOOL ADMIN ID
+-- If Admin: returns their own user_id.
+-- If Staff: returns their linked school_admin_id.
 -- ---------------------------------------------------------------------
-ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Role users can view user_roles" ON user_roles;
-DROP POLICY IF EXISTS "Role users can insert user_roles" ON user_roles;
-DROP POLICY IF EXISTS "Role users can update user_roles" ON user_roles;
-DROP POLICY IF EXISTS "Authenticated users can read user_roles" ON user_roles;
-DROP POLICY IF EXISTS "Authenticated users can insert user_roles" ON user_roles;
-DROP POLICY IF EXISTS "Authenticated users can update user_roles" ON user_roles;
-DROP POLICY IF EXISTS "Open user_roles for authenticated" ON user_roles;
-
-CREATE POLICY "Open user_roles for authenticated" ON user_roles
-    FOR ALL TO authenticated
-    USING (true)
-    WITH CHECK (true);
+CREATE OR REPLACE FUNCTION public.get_school_admin_id()
+RETURNS UUID AS $$
+DECLARE
+    s_id UUID;
+BEGIN
+    SELECT school_admin_id INTO s_id FROM public.user_roles WHERE user_id = auth.uid() LIMIT 1;
+    IF s_id IS NOT NULL THEN
+        RETURN s_id;
+    ELSE
+        RETURN auth.uid();
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- ---------------------------------------------------------------------
--- 4. MULTI-TENANT ROW-LEVEL SECURITY POLICIES
--- Each admin can ONLY see, insert, update, and delete THEIR OWN DATA!
--- If admin_id IS NULL, allow for backward compatibility.
+-- 5. MULTI-TENANT ROW-LEVEL SECURITY POLICIES
+-- Admin and Staff of the same school can see and manage all school records!
+-- Other Admins can only see their own school records.
 -- ---------------------------------------------------------------------
 DO $$ 
 DECLARE
@@ -111,7 +132,6 @@ BEGIN
     FOREACH tbl IN ARRAY tables LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
         
-        -- Drop any old restrictive policies that caused 42501 errors
         EXECUTE format('DROP POLICY IF EXISTS "Staff and admin can view settings" ON %I;', tbl);
         EXECUTE format('DROP POLICY IF EXISTS "Only admin can update settings" ON %I;', tbl);
         EXECUTE format('DROP POLICY IF EXISTS "Authenticated users with role can view candidates" ON %I;', tbl);
@@ -125,78 +145,102 @@ BEGIN
         EXECUTE format('DROP POLICY IF EXISTS "Role users can update appointments" ON %I;', tbl);
         EXECUTE format('DROP POLICY IF EXISTS "Sync all for authenticated" ON %I;', tbl);
         EXECUTE format('DROP POLICY IF EXISTS "Tenant isolation" ON %I;', tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "School tenant access" ON %I;', tbl);
 
-        -- Create seamless tenant-isolated policy
-        -- When querying: returns only rows belonging to this admin
-        -- When inserting: stamps and checks against auth.uid()
         EXECUTE format('
-            CREATE POLICY "Tenant isolation" ON %I
+            CREATE POLICY "School tenant access" ON %I
             FOR ALL TO authenticated
-            USING (admin_id = auth.uid() OR admin_id IS NULL)
-            WITH CHECK (admin_id = auth.uid() OR admin_id IS NULL);
+            USING (
+                admin_id = public.get_school_admin_id() 
+                OR admin_id = auth.uid() 
+                OR admin_id IS NULL
+            )
+            WITH CHECK (
+                admin_id = public.get_school_admin_id() 
+                OR admin_id = auth.uid() 
+                OR admin_id IS NULL
+            );
         ', tbl);
     END LOOP;
 END $$;
 
 -- ---------------------------------------------------------------------
--- 5. AUTOMATIC DATABASE PROVISIONING TRIGGER FOR NEW ADMINS
--- When any user signs up, Supabase automatically creates their workspace:
--- - Sets their role to "admin" in user_roles
--- - Creates their school settings row
--- - Creates standard packages for their driving school
--- - All candidates, appointments, vehicles, payments start fresh (0 rows)!
+-- 6. AUTOMATIC DATABASE PROVISIONING TRIGGER ON SIGNUP
+-- Automatically configures user_roles, settings, and packages.
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.handle_new_admin_signup()
+CREATE OR REPLACE FUNCTION public.handle_new_user_signup()
 RETURNS TRIGGER AS $$
+DECLARE
+    user_role text;
+    admin_mail text;
+    target_admin_id UUID;
 BEGIN
-    -- 1. Insert into user_roles as admin
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'admin')
-    ON CONFLICT (user_id) DO NOTHING;
+    user_role := COALESCE(NEW.raw_user_meta_data->>'role', 'admin');
+    admin_mail := LOWER(TRIM(COALESCE(NEW.raw_user_meta_data->>'admin_email', '')));
 
-    -- 2. Create isolated school settings for this admin
-    INSERT INTO public.settings (
-        admin_id,
-        school_name,
-        address,
-        phone,
-        gst_number,
-        receipt_footer_text,
-        slot_length,
-        cancellation_cutoff_hours,
-        absent_consumes_class,
-        default_package_validity_days
-    ) VALUES (
-        NEW.id,
-        'Gem Driving School',
-        'Indiranagar, Bengaluru, Karnataka 560038',
-        '+91 98765 43210',
-        '',
-        'Thank you for choosing Gem Driving School. Safe driving begins here! Terms & conditions apply.',
-        30,
-        3,
-        true,
-        90
-    )
-    ON CONFLICT DO NOTHING;
+    IF user_role = 'staff' AND admin_mail <> '' THEN
+        -- Link staff to existing admin with that email
+        SELECT user_id INTO target_admin_id 
+        FROM public.user_roles 
+        WHERE LOWER(email) = admin_mail AND role = 'admin' 
+        LIMIT 1;
 
-    -- 3. Create default packages for this admin's workspace
-    INSERT INTO public.packages (admin_id, name, vehicle_type, total_classes, fee, validity_days, description, is_active)
-    VALUES 
-        (NEW.id, 'Basic Car Training', 'car', 10, 5000.00, 45, '10 classes (30 min each). Ideal for beginners refreshing basics.', true),
-        (NEW.id, 'Standard Car Training', 'car', 20, 8000.00, 60, '20 classes (30 min each). Full end-to-end practical driving curriculum.', true),
-        (NEW.id, 'Car + Licence Package', 'car', 20, 12000.00, 90, '20 classes + complete RTO documentation and test assistance.', true),
-        (NEW.id, 'Two-Wheeler Training', 'bike', 10, 4000.00, 30, '10 classes (30 min each). Balance, gear shift, traffic rules.', true)
-    ON CONFLICT DO NOTHING;
+        IF target_admin_id IS NULL THEN
+            SELECT id INTO target_admin_id 
+            FROM auth.users 
+            WHERE LOWER(email) = admin_mail 
+            LIMIT 1;
+        END IF;
+
+        IF target_admin_id IS NULL THEN
+            target_admin_id := NEW.id;
+        END IF;
+
+        INSERT INTO public.user_roles (user_id, role, school_admin_id, email, admin_email)
+        VALUES (NEW.id, 'staff', target_admin_id, NEW.email, admin_mail)
+        ON CONFLICT (user_id) DO UPDATE SET
+            role = EXCLUDED.role,
+            school_admin_id = EXCLUDED.school_admin_id,
+            email = EXCLUDED.email,
+            admin_email = EXCLUDED.admin_email;
+    ELSE
+        -- Admin: owner of their own school
+        INSERT INTO public.user_roles (user_id, role, school_admin_id, email, admin_email)
+        VALUES (NEW.id, 'admin', NEW.id, NEW.email, NEW.email)
+        ON CONFLICT (user_id) DO UPDATE SET
+            role = EXCLUDED.role,
+            school_admin_id = EXCLUDED.school_admin_id,
+            email = EXCLUDED.email,
+            admin_email = EXCLUDED.admin_email;
+
+        -- Create isolated school settings for this admin
+        INSERT INTO public.settings (
+            admin_id, school_name, address, phone, gst_number,
+            receipt_footer_text, slot_length, cancellation_cutoff_hours,
+            absent_consumes_class, default_package_validity_days
+        ) VALUES (
+            NEW.id, 'Gem Driving School', 'Indiranagar, Bengaluru, Karnataka 560038',
+            '+91 98765 43210', '',
+            'Thank you for choosing Gem Driving School. Safe driving begins here! Terms & conditions apply.',
+            30, 3, true, 90
+        )
+        ON CONFLICT DO NOTHING;
+
+        -- Create default packages for this admin's workspace
+        INSERT INTO public.packages (admin_id, name, vehicle_type, total_classes, fee, validity_days, description, is_active)
+        VALUES 
+            (NEW.id, 'Basic Car Training', 'car', 10, 5000.00, 45, '10 classes (30 min each). Ideal for beginners refreshing basics.', true),
+            (NEW.id, 'Standard Car Training', 'car', 20, 8000.00, 60, '20 classes (30 min each). Full end-to-end practical driving curriculum.', true),
+            (NEW.id, 'Car + Licence Package', 'car', 20, 12000.00, 90, '20 classes + complete RTO documentation and test assistance.', true),
+            (NEW.id, 'Two-Wheeler Training', 'bike', 10, 4000.00, 30, '10 classes (30 min each). Balance, gear shift, traffic rules.', true)
+        ON CONFLICT DO NOTHING;
+    END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Bind trigger to auth.users table
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_admin_signup();
-
--- Done!
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_signup();

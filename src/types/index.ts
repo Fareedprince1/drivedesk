@@ -5,6 +5,8 @@ export interface UserProfile {
   email: string;
   name: string;
   role: UserRole;
+  schoolAdminId?: string;
+  adminEmail?: string;
 }
 
 export type CandidateStatus = 'active' | 'completed' | 'hold' | 'cancelled';

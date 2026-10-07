@@ -18,7 +18,13 @@ interface AuthContextType {
   isStaff: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
-  signup: (email: string, password: string, fullName: string, role?: UserRole) => Promise<AuthResponse>;
+  signup: (
+    email: string,
+    password: string,
+    fullName: string,
+    role?: UserRole,
+    adminEmail?: string
+  ) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   isSupabaseConnected: boolean;
 }
@@ -39,43 +45,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Helper to fetch or initialize the user's role in Supabase
-  const resolveUserRole = async (userId: string, requestedRole: UserRole = 'staff'): Promise<UserRole> => {
-    if (!supabase) return requestedRole;
+  // Helper to fetch or initialize the user's role and link to school admin
+  const resolveUserRole = async (
+    userId: string,
+    userEmail: string,
+    requestedRole: UserRole = 'admin',
+    adminEmailFromMeta?: string
+  ): Promise<{ role: UserRole; schoolAdminId: string; adminEmail?: string }> => {
+    if (!supabase) {
+      return {
+        role: requestedRole,
+        schoolAdminId: userId,
+        adminEmail: adminEmailFromMeta || userEmail,
+      };
+    }
 
     try {
       // 1. Check existing record in user_roles
-      const { data: roleRow, error: fetchErr } = await supabase
+      const { data: roleRow } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (roleRow?.role) {
-        return roleRow.role as UserRole;
+        return {
+          role: roleRow.role as UserRole,
+          schoolAdminId: roleRow.school_admin_id || (roleRow.role === 'admin' ? userId : userId),
+          adminEmail: roleRow.admin_email || userEmail,
+        };
       }
 
-      // 2. If no role exists yet, check if this is the first registered user
-      const { count } = await supabase
-        .from('user_roles')
-        .select('*', { count: 'exact', head: true });
+      // 2. If no role row exists, determine schoolAdminId
+      let schoolAdminId = userId;
+      const targetAdminEmail = adminEmailFromMeta
+        ? adminEmailFromMeta.trim().toLowerCase()
+        : userEmail.toLowerCase();
 
-      // First user registered becomes Admin by default; otherwise use requested role
-      const assignedRole: UserRole = (count === 0 || count === null) ? 'admin' : requestedRole;
+      if (requestedRole === 'staff' && targetAdminEmail) {
+        // Try looking up the admin's user_id from user_roles
+        const { data: adminRow } = await supabase
+          .from('user_roles')
+          .select('user_id, email')
+          .ilike('email', targetAdminEmail)
+          .eq('role', 'admin')
+          .maybeSingle();
 
-      // 3. Insert assigned role
-      const { error: insertErr } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: userId, role: assignedRole }]);
-
-      if (insertErr) {
-        console.warn('Could not persist to user_roles:', insertErr.message);
+        if (adminRow?.user_id) {
+          schoolAdminId = adminRow.user_id;
+        }
       }
 
-      return assignedRole;
+      // 3. Insert or update user_roles row
+      try {
+        const payload: any = {
+          user_id: userId,
+          role: requestedRole,
+          school_admin_id: schoolAdminId,
+          email: userEmail.toLowerCase(),
+          admin_email: targetAdminEmail,
+        };
+        await supabase.from('user_roles').upsert([payload]);
+      } catch (e) {
+        console.warn('Upsert user_roles warning:', e);
+      }
+
+      return {
+        role: requestedRole,
+        schoolAdminId,
+        adminEmail: targetAdminEmail,
+      };
     } catch (err) {
       console.error('Error resolving role:', err);
-      return requestedRole;
+      return {
+        role: requestedRole,
+        schoolAdminId: userId,
+        adminEmail: userEmail,
+      };
     }
   };
 
@@ -94,9 +140,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user) {
           const userMeta = session.user.user_metadata || {};
-          const assignedRole = await resolveUserRole(
+          const { role: assignedRole, schoolAdminId, adminEmail } = await resolveUserRole(
             session.user.id,
-            (userMeta.role as UserRole) || 'admin'
+            session.user.email || '',
+            (userMeta.role as UserRole) || 'admin',
+            userMeta.admin_email as string | undefined
           );
 
           if (mounted) {
@@ -105,15 +153,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: session.user.email || '',
               name: userMeta.full_name || session.user.email?.split('@')[0] || 'Administrator',
               role: assignedRole,
+              schoolAdminId,
+              adminEmail,
             };
-            db.setActiveUser(session.user.id);
+            db.setActiveUser(session.user.id, schoolAdminId);
             setUser(profile);
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
             await db.syncFromCloud();
           }
         } else {
           if (mounted) {
-            db.setActiveUser(null);
+            db.setActiveUser(null, null);
             setUser(null);
             localStorage.removeItem(AUTH_STORAGE_KEY);
           }
@@ -132,9 +182,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         if (session?.user) {
           const userMeta = session.user.user_metadata || {};
-          const assignedRole = await resolveUserRole(
+          const { role: assignedRole, schoolAdminId, adminEmail } = await resolveUserRole(
             session.user.id,
-            (userMeta.role as UserRole) || 'admin'
+            session.user.email || '',
+            (userMeta.role as UserRole) || 'admin',
+            userMeta.admin_email as string | undefined
           );
 
           const profile: UserProfile = {
@@ -142,12 +194,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: session.user.email || '',
             name: userMeta.full_name || session.user.email?.split('@')[0] || 'User',
             role: assignedRole,
+            schoolAdminId,
+            adminEmail,
           };
-          db.setActiveUser(session.user.id);
+          db.setActiveUser(session.user.id, schoolAdminId);
           setUser(profile);
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         } else if (event === 'SIGNED_OUT') {
-          db.setActiveUser(null);
+          db.setActiveUser(null, null);
+          db.clearAllData();
           setUser(null);
           localStorage.removeItem(AUTH_STORAGE_KEY);
         }
@@ -170,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isSupabaseConfigured || !supabase) {
       return {
         success: false,
-        error: 'Supabase credentials are not configured in .env file.'
+        error: 'Supabase credentials are not configured in .env file.',
       };
     }
 
@@ -181,7 +236,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        // Special helpful handling for unconfirmed emails
         if (error.message.toLowerCase().includes('email not confirmed')) {
           return {
             success: false,
@@ -194,9 +248,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         const userMeta = data.user.user_metadata || {};
-        const assignedRole = await resolveUserRole(
+        const { role: assignedRole, schoolAdminId, adminEmail } = await resolveUserRole(
           data.user.id,
-          (userMeta.role as UserRole) || 'admin'
+          data.user.email || email,
+          (userMeta.role as UserRole) || 'admin',
+          userMeta.admin_email as string | undefined
         );
 
         const profile: UserProfile = {
@@ -204,9 +260,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: data.user.email || email,
           name: userMeta.full_name || email.split('@')[0],
           role: assignedRole,
+          schoolAdminId,
+          adminEmail,
         };
 
-        db.setActiveUser(data.user.id);
+        db.setActiveUser(data.user.id, schoolAdminId);
         setUser(profile);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         db.logActivity('INSERT', 'user_roles', profile.id, `User signed in as ${assignedRole.toUpperCase()}`);
@@ -220,21 +278,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Real Sign Up with Supabase Auth
+  // Real Sign Up with Supabase Auth (Supports Admin & Staff linking)
   const signup = async (
     email: string,
     password: string,
     fullName: string,
-    requestedRole: UserRole = 'admin'
+    requestedRole: UserRole = 'admin',
+    adminEmail?: string
   ): Promise<AuthResponse> => {
     if (!isSupabaseConfigured || !supabase) {
       return {
         success: false,
-        error: 'Supabase credentials are not configured in .env file.'
+        error: 'Supabase credentials are not configured in .env file.',
       };
     }
 
     try {
+      const trimmedAdminEmail = adminEmail ? adminEmail.trim().toLowerCase() : email.trim().toLowerCase();
+
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -242,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName.trim(),
             role: requestedRole,
+            admin_email: trimmedAdminEmail,
           },
         },
       });
@@ -250,17 +312,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: error.message };
       }
 
-      // If Supabase has email autoconfirm disabled or user is confirmed
+      // If user is logged in immediately (email confirm off)
       if (data.session && data.user) {
-        const assignedRole = await resolveUserRole(data.user.id, requestedRole);
+        const { role: assignedRole, schoolAdminId, adminEmail: resolvedAdminEmail } = await resolveUserRole(
+          data.user.id,
+          data.user.email || email,
+          requestedRole,
+          trimmedAdminEmail
+        );
+
         const profile: UserProfile = {
           id: data.user.id,
           email: data.user.email || email,
           name: fullName || email.split('@')[0],
           role: assignedRole,
+          schoolAdminId,
+          adminEmail: resolvedAdminEmail,
         };
 
-        db.setActiveUser(data.user.id);
+        db.setActiveUser(data.user.id, schoolAdminId);
         setUser(profile);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
         db.logActivity('INSERT', 'user_roles', profile.id, `Created account as ${assignedRole.toUpperCase()}`);
@@ -271,11 +341,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // If confirmation email is required
       return {
         success: true,
         requiresEmailConfirmation: true,
-        message: 'Account registered! A confirmation email has been sent. Please verify your email or auto-confirm in Supabase to sign in.',
+        message: 'Account registered! A confirmation email has been sent. Please verify your email to sign in.',
       };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Failed to create account' };
@@ -291,7 +360,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('Sign out error:', err);
     } finally {
-      db.setActiveUser(null);
+      db.setActiveUser(null, null);
+      db.clearAllData();
       setUser(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }

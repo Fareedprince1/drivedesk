@@ -30,6 +30,7 @@ export const Login: React.FC = () => {
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
   const [signUpRole, setSignUpRole] = useState<UserRole>('admin');
+  const [signUpAdminEmail, setSignUpAdminEmail] = useState('');
 
   // UI Feedback States
   const [loading, setLoading] = useState(false);
@@ -77,10 +78,15 @@ export const Login: React.FC = () => {
       return;
     }
 
+    if (signUpRole === 'staff' && !signUpAdminEmail.trim()) {
+      setErrorMessage("Please enter your Driving School Admin's email to connect to their database.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const res = await signup(signUpEmail, signUpPassword, signUpName, signUpRole);
+      const res = await signup(signUpEmail, signUpPassword, signUpName, signUpRole, signUpAdminEmail);
       if (res.success) {
         if (res.requiresEmailConfirmation) {
           setRequiresConfirmation(true);
@@ -375,9 +381,28 @@ export const Login: React.FC = () => {
                   <div className="text-[10px] text-slate-500 mt-0.5">Reception desk only</div>
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                * Note: The first user registered in Supabase will automatically receive Admin permissions.
-              </p>
+
+              {signUpRole === 'staff' && (
+                <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                    Driving School Admin Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3 top-2.5 text-amber-500" />
+                    <input
+                      type="email"
+                      required
+                      value={signUpAdminEmail}
+                      onChange={(e) => setSignUpAdminEmail(e.target.value)}
+                      placeholder="admin@gemdrivingschool.in"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-300">
+                    Enter the registered email of your driving school Admin to connect your staff account to their live database.
+                  </p>
+                </div>
+              )}
             </div>
 
             <button

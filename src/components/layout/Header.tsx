@@ -8,6 +8,8 @@ import {
   Menu,
   LogOut,
   User,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/storage';
@@ -19,6 +21,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch }) => {
   const { user, role, isAdmin, logout } = useAuth();
+  const [copiedAdminEmail, setCopiedAdminEmail] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || 
       (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -75,18 +78,55 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch
 
         {/* Right Actions: Dark Mode, Real User Profile & Logout */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Real Authenticated Role Badge */}
-          <div className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
-            isAdmin
-              ? 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800'
-              : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-          }`}>
-            {isAdmin ? (
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-            ) : (
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+          {/* Role & School Badge */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
+              isAdmin
+                ? 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800'
+                : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+            }`}>
+              {isAdmin ? (
+                <ShieldCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+              ) : (
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              )}
+              <span>{isAdmin ? 'ADMIN' : 'STAFF'}</span>
+            </div>
+
+            {isAdmin && user?.email && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(user.email);
+                  setCopiedAdminEmail(true);
+                  setTimeout(() => setCopiedAdminEmail(false), 2000);
+                }}
+                title="Copy Admin Email to share with Staff members"
+                className="hidden lg:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 rounded-lg hover:bg-teal-100 transition cursor-pointer"
+              >
+                {copiedAdminEmail ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span>Email Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3 text-teal-600" />
+                    <span>Copy Admin Email for Staff</span>
+                  </>
+                )}
+              </button>
             )}
-            <span>{isAdmin ? 'ADMIN' : 'STAFF'}</span>
+
+            {!isAdmin && user?.adminEmail && (
+              <div
+                title={`Linked to Admin: ${user.adminEmail}`}
+                className="hidden lg:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg"
+              >
+                <span>Linked to:</span>
+                <span className="font-bold truncate max-w-[120px]">{user.adminEmail}</span>
+              </div>
+            )}
           </div>
 
           {/* Dark Mode Toggle */}
