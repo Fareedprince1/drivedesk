@@ -93,10 +93,22 @@ export const AppointmentsPage: React.FC = () => {
   const [bulkTargetVehId, setBulkTargetVehId] = useState('');
   const [bulkResult, setBulkResult] = useState<{ reassignedCount: number; conflicts: string[] } | null>(null);
 
-  const instructors = db.getInstructors();
-  const vehicles = db.getVehicles();
-  const candidates = db.getCandidatesWithStats();
-  const allAppointments = db.getAppointments();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  React.useEffect(() => {
+    const handleSync = () => setRefreshKey((k) => k + 1);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('drivedesk_sync_complete', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('drivedesk_sync_complete', handleSync);
+    };
+  }, []);
+
+  const instructors = useMemo(() => db.getInstructors(), [refreshKey]);
+  const vehicles = useMemo(() => db.getVehicles(), [refreshKey]);
+  const candidates = useMemo(() => db.getCandidatesWithStats(), [refreshKey]);
+  const allAppointments = useMemo(() => db.getAppointments(), [refreshKey]);
 
   // Date Navigation
   const handleDateShift = (days: number) => {
@@ -182,6 +194,7 @@ export const AppointmentsPage: React.FC = () => {
         setIsBookModalOpen(false);
         setBookingRemarks('');
         setSearchParams({});
+        setRefreshKey((k) => k + 1);
       } catch (err: any) {
         setBookingError(err?.message || 'Double-booking error');
       }
@@ -203,6 +216,7 @@ export const AppointmentsPage: React.FC = () => {
           role
         );
 
+        setRefreshKey((k) => k + 1);
         if (res.skipped.length > 0) {
           setBookingSuccessMsg(
             `Booked ${res.booked.length} classes! Skipped ${res.skipped.length} conflicting/holiday slots.`
@@ -224,6 +238,7 @@ export const AppointmentsPage: React.FC = () => {
   // Quick Action
   const handleQuickStatus = (appId: string, status: 'completed' | 'absent') => {
     db.updateAppointmentStatus(appId, status, undefined, role);
+    setRefreshKey((k) => k + 1);
     setIsManageModalOpen(false);
   };
 
@@ -240,6 +255,7 @@ export const AppointmentsPage: React.FC = () => {
         rescheduleReason,
         role
       );
+      setRefreshKey((k) => k + 1);
       setIsManageModalOpen(false);
     } catch (err: any) {
       alert(err?.message || 'Reschedule conflict');
@@ -252,6 +268,7 @@ export const AppointmentsPage: React.FC = () => {
     if (!selectedAppointment) return;
     try {
       db.reassignAppointment(selectedAppointment.id, reassignInstId, reassignVehId, role);
+      setRefreshKey((k) => k + 1);
       setIsManageModalOpen(false);
     } catch (err: any) {
       alert(err?.message || 'Reassignment conflict');
@@ -263,6 +280,7 @@ export const AppointmentsPage: React.FC = () => {
     e.preventDefault();
     if (!selectedAppointment) return;
     db.cancelAppointment(selectedAppointment.id, cancelReason, role);
+    setRefreshKey((k) => k + 1);
     setIsManageModalOpen(false);
   };
 
@@ -279,6 +297,7 @@ export const AppointmentsPage: React.FC = () => {
       },
       role
     );
+    setRefreshKey((k) => k + 1);
     setBulkResult(res);
   };
 

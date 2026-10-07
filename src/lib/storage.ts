@@ -67,9 +67,28 @@ export const DEFAULT_SETTINGS: SchoolSettings = {
   updated_at: '2026-01-01T00:00:00Z',
 };
 
+export const DEFAULT_PACKAGE_IDS = {
+  BASIC_CAR: '10000000-0000-4000-8000-000000000001',
+  STANDARD_CAR: '10000000-0000-4000-8000-000000000002',
+  CAR_LICENCE: '10000000-0000-4000-8000-000000000003',
+  BIKE: '10000000-0000-4000-8000-000000000004',
+};
+
+export const DEFAULT_VEHICLE_IDS = {
+  DZIRE: '20000000-0000-4000-8000-000000000001',
+  NIOS: '20000000-0000-4000-8000-000000000002',
+  ACTIVA: '20000000-0000-4000-8000-000000000003',
+};
+
+export const DEFAULT_INSTRUCTOR_IDS = {
+  RAMESH: '30000000-0000-4000-8000-000000000001',
+  SURESH: '30000000-0000-4000-8000-000000000002',
+  PRIYA: '30000000-0000-4000-8000-000000000003',
+};
+
 export const DEFAULT_PACKAGES: Package[] = [
   {
-    id: 'pkg-1',
+    id: DEFAULT_PACKAGE_IDS.BASIC_CAR,
     name: 'Basic Car Training',
     vehicle_type: 'car',
     total_classes: 10,
@@ -81,7 +100,7 @@ export const DEFAULT_PACKAGES: Package[] = [
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'pkg-2',
+    id: DEFAULT_PACKAGE_IDS.STANDARD_CAR,
     name: 'Standard Car Training',
     vehicle_type: 'car',
     total_classes: 20,
@@ -93,7 +112,7 @@ export const DEFAULT_PACKAGES: Package[] = [
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'pkg-3',
+    id: DEFAULT_PACKAGE_IDS.CAR_LICENCE,
     name: 'Car + Licence Package',
     vehicle_type: 'car',
     total_classes: 20,
@@ -105,7 +124,7 @@ export const DEFAULT_PACKAGES: Package[] = [
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'pkg-4',
+    id: DEFAULT_PACKAGE_IDS.BIKE,
     name: 'Two-Wheeler Training',
     vehicle_type: 'bike',
     total_classes: 10,
@@ -120,11 +139,11 @@ export const DEFAULT_PACKAGES: Package[] = [
 
 export const DEFAULT_VEHICLES: Vehicle[] = [
   {
-    id: 'veh-1',
+    id: DEFAULT_VEHICLE_IDS.DZIRE,
     registration_number: 'KA-01-AB-1234',
     type: 'car',
     model: 'Maruti Suzuki Dzire (Manual)',
-    assigned_instructor_id: 'inst-1',
+    assigned_instructor_id: DEFAULT_INSTRUCTOR_IDS.RAMESH,
     insurance_expiry: '2026-12-15',
     pollution_expiry: '2026-11-20',
     fitness_expiry: '2028-04-10',
@@ -135,11 +154,11 @@ export const DEFAULT_VEHICLES: Vehicle[] = [
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'veh-2',
+    id: DEFAULT_VEHICLE_IDS.NIOS,
     registration_number: 'KA-03-CD-5678',
     type: 'car',
     model: 'Hyundai Grand i10 Nios',
-    assigned_instructor_id: 'inst-2',
+    assigned_instructor_id: DEFAULT_INSTRUCTOR_IDS.SURESH,
     insurance_expiry: '2026-10-25', // Expiring soon (<30 days from Oct)
     pollution_expiry: '2026-10-18', // Expiring soon
     fitness_expiry: '2027-08-15',
@@ -150,11 +169,11 @@ export const DEFAULT_VEHICLES: Vehicle[] = [
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'veh-3',
+    id: DEFAULT_VEHICLE_IDS.ACTIVA,
     registration_number: 'KA-05-EF-9012',
     type: 'bike',
     model: 'Honda Activa 6G',
-    assigned_instructor_id: 'inst-3',
+    assigned_instructor_id: DEFAULT_INSTRUCTOR_IDS.PRIYA,
     insurance_expiry: '2027-01-30',
     pollution_expiry: '2026-12-05',
     fitness_expiry: '2029-02-14',
@@ -168,42 +187,42 @@ export const DEFAULT_VEHICLES: Vehicle[] = [
 
 export const DEFAULT_INSTRUCTORS: Instructor[] = [
   {
-    id: 'inst-1',
+    id: DEFAULT_INSTRUCTOR_IDS.RAMESH,
     name: 'Ramesh Kumar',
     mobile: '9845012345',
     licence_number: 'KA0120100014289',
     licence_expiry: '2029-05-15',
     working_start_time: '06:00',
     working_end_time: '20:00',
-    assigned_vehicle_id: 'veh-1',
+    assigned_vehicle_id: DEFAULT_VEHICLE_IDS.DZIRE,
     status: 'active',
     joining_date: '2022-03-15',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'inst-2',
+    id: DEFAULT_INSTRUCTOR_IDS.SURESH,
     name: 'Suresh Gowda',
     mobile: '9741234567',
     licence_number: 'KA0320140023910',
     licence_expiry: '2028-11-20',
     working_start_time: '07:00',
     working_end_time: '19:00',
-    assigned_vehicle_id: 'veh-2',
+    assigned_vehicle_id: DEFAULT_VEHICLE_IDS.NIOS,
     status: 'active',
     joining_date: '2023-01-10',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
   {
-    id: 'inst-3',
+    id: DEFAULT_INSTRUCTOR_IDS.PRIYA,
     name: 'Priya Sharma',
     mobile: '9980123456',
     licence_number: 'KA0520180031844',
     licence_expiry: '2030-08-10',
     working_start_time: '08:00',
     working_end_time: '18:00',
-    assigned_vehicle_id: 'veh-3',
+    assigned_vehicle_id: DEFAULT_VEHICLE_IDS.ACTIVA,
     status: 'active',
     joining_date: '2024-06-01',
     created_at: '2026-01-01T00:00:00Z',
@@ -465,10 +484,34 @@ function generateSeedCandidatesAndData() {
 
   let receiptCounter = 1001;
 
+  const pkgMap: Record<string, string> = {
+    'pkg-1': DEFAULT_PACKAGE_IDS.BASIC_CAR,
+    'pkg-2': DEFAULT_PACKAGE_IDS.STANDARD_CAR,
+    'pkg-3': DEFAULT_PACKAGE_IDS.CAR_LICENCE,
+    'pkg-4': DEFAULT_PACKAGE_IDS.BIKE,
+  };
+  const instMap: Record<string, string> = {
+    'inst-1': DEFAULT_INSTRUCTOR_IDS.RAMESH,
+    'inst-2': DEFAULT_INSTRUCTOR_IDS.SURESH,
+    'inst-3': DEFAULT_INSTRUCTOR_IDS.PRIYA,
+  };
+  const vehMap: Record<string, string> = {
+    'veh-1': DEFAULT_VEHICLE_IDS.DZIRE,
+    'veh-2': DEFAULT_VEHICLE_IDS.NIOS,
+    'veh-3': DEFAULT_VEHICLE_IDS.ACTIVA,
+  };
+
+  const createdCandidates: Array<{ id: string; enrId: string }> = [];
+
   candidatesData.forEach((cd, index) => {
-    const candidateId = `cand-${index + 1}`;
-    const enrollmentId = `enr-${index + 1}`;
-    const pkg = DEFAULT_PACKAGES.find((p) => p.id === cd.pkgId) || DEFAULT_PACKAGES[0];
+    const candidateId = generateUUID();
+    const enrollmentId = generateUUID();
+    createdCandidates.push({ id: candidateId, enrId: enrollmentId });
+
+    const realPkgId = pkgMap[cd.pkgId] || DEFAULT_PACKAGE_IDS.BASIC_CAR;
+    const pkg = DEFAULT_PACKAGES.find((p) => p.id === realPkgId) || DEFAULT_PACKAGES[0];
+    const realInstId = instMap[cd.instId] || DEFAULT_INSTRUCTOR_IDS.RAMESH;
+    const realVehId = vehMap[cd.vehId] || DEFAULT_VEHICLE_IDS.DZIRE;
 
     candidates.push({
       id: candidateId,
@@ -507,7 +550,7 @@ function generateSeedCandidatesAndData() {
 
     if (cd.paid > 0) {
       payments.push({
-        id: `pay-${index + 1}`,
+        id: generateUUID(),
         enrollment_id: enrollmentId,
         candidate_id: candidateId,
         amount: cd.paid,
@@ -516,7 +559,7 @@ function generateSeedCandidatesAndData() {
         receipt_number: `R-${receiptCounter++}`,
         remarks: 'Admission initial payment',
         is_reversal: false,
-        created_by: 'Admin',
+        created_by: undefined,
         created_at: `${cd.joining}T10:10:00Z`,
       });
     }
@@ -527,11 +570,11 @@ function generateSeedCandidatesAndData() {
       const dayOffset = c * 2;
       const appDate = `2026-09-${String(10 + dayOffset).padStart(2, '0')}`;
       appointments.push({
-        id: `app-${index + 1}-${c + 1}`,
+        id: generateUUID(),
         enrollment_id: enrollmentId,
         candidate_id: candidateId,
-        instructor_id: cd.instId,
-        vehicle_id: cd.vehId,
+        instructor_id: realInstId,
+        vehicle_id: realVehId,
         appointment_date: appDate,
         start_time: '08:00',
         end_time: '08:30',
@@ -544,7 +587,7 @@ function generateSeedCandidatesAndData() {
 
     // RTO Tracking record
     rtoList.push({
-      id: `rto-${index + 1}`,
+      id: generateUUID(),
       enrollment_id: enrollmentId,
       candidate_id: candidateId,
       stage: cd.status === 'completed' ? 'licence_received' : cd.ll ? 'training_ongoing' : 'll_pending',
@@ -562,12 +605,12 @@ function generateSeedCandidatesAndData() {
     // Notes
     if (index % 3 === 0) {
       notesList.push({
-        id: `note-${index + 1}`,
+        id: generateUUID(),
         candidate_id: candidateId,
         note_text: 'Follow-up for remaining balance payment before practical test.',
         follow_up_date: '2026-10-07',
         is_done: false,
-        created_by: 'Receptionist',
+        created_by: 'Staff',
         created_at: '2026-10-01T14:30:00Z',
       });
     }
@@ -576,11 +619,11 @@ function generateSeedCandidatesAndData() {
   // Today's Appointments (2026-10-06)
   const todayApps: Appointment[] = [
     {
-      id: 'app-today-1',
-      enrollment_id: 'enr-1',
-      candidate_id: 'cand-1',
-      instructor_id: 'inst-1',
-      vehicle_id: 'veh-1',
+      id: generateUUID(),
+      enrollment_id: createdCandidates[0]?.enrId || generateUUID(),
+      candidate_id: createdCandidates[0]?.id || generateUUID(),
+      instructor_id: DEFAULT_INSTRUCTOR_IDS.RAMESH,
+      vehicle_id: DEFAULT_VEHICLE_IDS.DZIRE,
       appointment_date: '2026-10-06',
       start_time: '07:00',
       end_time: '07:30',
@@ -590,11 +633,11 @@ function generateSeedCandidatesAndData() {
       updated_at: '2026-10-06T07:35:00Z',
     },
     {
-      id: 'app-today-2',
-      enrollment_id: 'enr-2',
-      candidate_id: 'cand-2',
-      instructor_id: 'inst-2',
-      vehicle_id: 'veh-2',
+      id: generateUUID(),
+      enrollment_id: createdCandidates[1]?.enrId || generateUUID(),
+      candidate_id: createdCandidates[1]?.id || generateUUID(),
+      instructor_id: DEFAULT_INSTRUCTOR_IDS.SURESH,
+      vehicle_id: DEFAULT_VEHICLE_IDS.NIOS,
       appointment_date: '2026-10-06',
       start_time: '08:00',
       end_time: '08:30',
@@ -604,11 +647,11 @@ function generateSeedCandidatesAndData() {
       updated_at: '2026-10-05T11:00:00Z',
     },
     {
-      id: 'app-today-3',
-      enrollment_id: 'enr-4',
-      candidate_id: 'cand-4',
-      instructor_id: 'inst-3',
-      vehicle_id: 'veh-3',
+      id: generateUUID(),
+      enrollment_id: createdCandidates[3]?.enrId || generateUUID(),
+      candidate_id: createdCandidates[3]?.id || generateUUID(),
+      instructor_id: DEFAULT_INSTRUCTOR_IDS.PRIYA,
+      vehicle_id: DEFAULT_VEHICLE_IDS.ACTIVA,
       appointment_date: '2026-10-06',
       start_time: '09:00',
       end_time: '09:30',
@@ -618,11 +661,11 @@ function generateSeedCandidatesAndData() {
       updated_at: '2026-10-05T12:00:00Z',
     },
     {
-      id: 'app-today-4',
-      enrollment_id: 'enr-6',
-      candidate_id: 'cand-6',
-      instructor_id: 'inst-1',
-      vehicle_id: 'veh-1',
+      id: generateUUID(),
+      enrollment_id: createdCandidates[5]?.enrId || generateUUID(),
+      candidate_id: createdCandidates[5]?.id || generateUUID(),
+      instructor_id: DEFAULT_INSTRUCTOR_IDS.RAMESH,
+      vehicle_id: DEFAULT_VEHICLE_IDS.DZIRE,
       appointment_date: '2026-10-06',
       start_time: '10:00',
       end_time: '10:30',
@@ -631,30 +674,16 @@ function generateSeedCandidatesAndData() {
       created_at: '2026-10-05T14:00:00Z',
       updated_at: '2026-10-05T14:00:00Z',
     },
-    {
-      id: 'app-today-5',
-      enrollment_id: 'enr-8',
-      candidate_id: 'cand-8',
-      instructor_id: 'inst-1',
-      vehicle_id: 'veh-1',
-      appointment_date: '2026-10-06',
-      start_time: '16:00',
-      end_time: '16:30',
-      status: 'booked',
-      remarks: 'Evening peak traffic driving',
-      created_at: '2026-10-05T15:00:00Z',
-      updated_at: '2026-10-05T15:00:00Z',
-    },
   ];
 
   // Tomorrow's Appointments (2026-10-07)
   const tomorrowApps: Appointment[] = [
     {
-      id: 'app-tom-1',
-      enrollment_id: 'enr-3',
-      candidate_id: 'cand-3',
-      instructor_id: 'inst-1',
-      vehicle_id: 'veh-1',
+      id: generateUUID(),
+      enrollment_id: createdCandidates[2]?.enrId || generateUUID(),
+      candidate_id: createdCandidates[2]?.id || generateUUID(),
+      instructor_id: DEFAULT_INSTRUCTOR_IDS.RAMESH,
+      vehicle_id: DEFAULT_VEHICLE_IDS.DZIRE,
       appointment_date: '2026-10-07',
       start_time: '07:30',
       end_time: '08:00',
@@ -664,11 +693,11 @@ function generateSeedCandidatesAndData() {
       updated_at: '2026-10-05T10:00:00Z',
     },
     {
-      id: 'app-tom-2',
-      enrollment_id: 'enr-7',
-      candidate_id: 'cand-7',
-      instructor_id: 'inst-2',
-      vehicle_id: 'veh-2',
+      id: generateUUID(),
+      enrollment_id: createdCandidates[6]?.enrId || generateUUID(),
+      candidate_id: createdCandidates[6]?.id || generateUUID(),
+      instructor_id: DEFAULT_INSTRUCTOR_IDS.SURESH,
+      vehicle_id: DEFAULT_VEHICLE_IDS.NIOS,
       appointment_date: '2026-10-07',
       start_time: '08:30',
       end_time: '09:00',
@@ -683,68 +712,176 @@ function generateSeedCandidatesAndData() {
 
   const defaultExpenses: Expense[] = [
     {
-      id: 'exp-1',
+      id: generateUUID(),
       expense_date: '2026-10-01',
       category: 'fuel',
       amount: 2500,
-      vehicle_id: 'veh-1',
+      vehicle_id: DEFAULT_VEHICLE_IDS.DZIRE,
       payment_mode: 'upi',
       description: 'Petrol refuel Dzire KA-01-AB-1234',
-      created_by: 'Admin',
+      created_by: undefined,
       created_at: '2026-10-01T09:00:00Z',
     },
     {
-      id: 'exp-2',
+      id: generateUUID(),
       expense_date: '2026-10-02',
       category: 'fuel',
       amount: 2200,
-      vehicle_id: 'veh-2',
+      vehicle_id: DEFAULT_VEHICLE_IDS.NIOS,
       payment_mode: 'upi',
       description: 'Petrol refuel i10 KA-03-CD-5678',
-      created_by: 'Admin',
+      created_by: undefined,
       created_at: '2026-10-02T10:00:00Z',
     },
     {
-      id: 'exp-3',
+      id: generateUUID(),
       expense_date: '2026-10-03',
       category: 'office',
       amount: 1500,
+      vehicle_id: null,
       payment_mode: 'cash',
       description: 'Office tea, water cans and receipt book stationery',
-      created_by: 'Admin',
+      created_by: undefined,
       created_at: '2026-10-03T11:00:00Z',
     },
     {
-      id: 'exp-4',
+      id: generateUUID(),
       expense_date: '2026-10-04',
       category: 'vehicle_service',
       amount: 3200,
-      vehicle_id: 'veh-1',
+      vehicle_id: DEFAULT_VEHICLE_IDS.DZIRE,
       payment_mode: 'card',
       description: 'Wheel alignment and brake shoe check at authorized service center',
-      created_by: 'Admin',
+      created_by: undefined,
       created_at: '2026-10-04T16:00:00Z',
     },
     {
-      id: 'exp-5',
+      id: generateUUID(),
       expense_date: '2026-10-05',
       category: 'salary',
       amount: 45000,
+      vehicle_id: null,
       payment_mode: 'bank_transfer',
       description: 'Instructors and front-desk September monthly salary disbursement',
-      created_by: 'Admin',
+      created_by: undefined,
       created_at: '2026-10-05T12:00:00Z',
     },
   ];
 
   const defaultHolidays: Holiday[] = [
-    { id: 'hol-1', date: '2026-10-02', description: 'Gandhi Jayanti', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'hol-2', date: '2026-10-20', description: 'Ayudha Pooja / Vijayadashami', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'hol-3', date: '2026-11-01', description: 'Kannada Rajyotsava', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'hol-4', date: '2026-11-08', description: 'Deepavali', created_at: '2026-01-01T00:00:00Z' },
+    { id: generateUUID(), date: '2026-10-02', description: 'Gandhi Jayanti', created_at: '2026-01-01T00:00:00Z' },
+    { id: generateUUID(), date: '2026-10-20', description: 'Ayudha Pooja / Vijayadashami', created_at: '2026-01-01T00:00:00Z' },
+    { id: generateUUID(), date: '2026-11-01', description: 'Kannada Rajyotsava', created_at: '2026-01-01T00:00:00Z' },
+    { id: generateUUID(), date: '2026-11-08', description: 'Deepavali', created_at: '2026-01-01T00:00:00Z' },
   ];
 
   return { candidates, enrollments, payments, appointments, rtoList, notesList, defaultExpenses, defaultHolidays };
+}
+
+// Supabase PostgreSQL Allowed Columns Whitelist (prevents schema cache errors)
+const DB_ALLOWED_COLUMNS: Record<string, string[]> = {
+  candidates: [
+    'id', 'candidate_code', 'full_name', 'mobile', 'alt_mobile',
+    'address', 'date_of_birth', 'joining_date', 'll_number',
+    'll_issue_date', 'll_expiry_date', 'status', 'notes_summary',
+    'deleted_at', 'created_at', 'updated_at', 'admin_id'
+  ],
+  enrollments: [
+    'id', 'candidate_id', 'package_id', 'start_date', 'total_classes',
+    'total_fee', 'discount_amount', 'status', 'expiry_date',
+    'created_at', 'updated_at', 'admin_id'
+  ],
+  payments: [
+    'id', 'enrollment_id', 'candidate_id', 'amount', 'payment_date',
+    'mode', 'receipt_number', 'remarks', 'is_reversal',
+    'reverses_payment_id', 'created_by', 'created_at', 'admin_id'
+  ],
+  appointments: [
+    'id', 'enrollment_id', 'candidate_id', 'instructor_id',
+    'vehicle_id', 'appointment_date', 'start_time', 'end_time',
+    'status', 'remarks', 'rescheduled_from_id', 'created_by',
+    'deleted_at', 'created_at', 'updated_at', 'admin_id'
+  ],
+  vehicles: [
+    'id', 'registration_number', 'type', 'model', 'assigned_instructor_id',
+    'insurance_expiry', 'pollution_expiry', 'fitness_expiry',
+    'last_service_date', 'next_service_date', 'status',
+    'created_at', 'updated_at', 'admin_id'
+  ],
+  instructors: [
+    'id', 'name', 'mobile', 'licence_number', 'licence_expiry',
+    'working_start_time', 'working_end_time', 'assigned_vehicle_id',
+    'status', 'joining_date', 'created_at', 'updated_at', 'admin_id'
+  ],
+  packages: [
+    'id', 'name', 'vehicle_type', 'total_classes', 'fee',
+    'validity_days', 'description', 'is_active',
+    'created_at', 'updated_at', 'admin_id'
+  ],
+  settings: [
+    'id', 'school_name', 'address', 'phone', 'gst_number',
+    'receipt_footer_text', 'slot_length', 'cancellation_cutoff_hours',
+    'absent_consumes_class', 'default_package_validity_days',
+    'created_at', 'updated_at', 'admin_id'
+  ],
+  expenses: [
+    'id', 'expense_date', 'category', 'amount', 'vehicle_id',
+    'payment_mode', 'description', 'created_by', 'created_at', 'admin_id'
+  ],
+  candidate_notes: [
+    'id', 'candidate_id', 'note_text', 'follow_up_date', 'is_done',
+    'created_by', 'created_at', 'admin_id'
+  ],
+  rto_tracking: [
+    'id', 'enrollment_id', 'stage', 'll_number', 'test_date',
+    'test_time', 'test_result', 'licence_number',
+    'licence_received_date', 'remarks', 'created_at', 'updated_at', 'admin_id'
+  ],
+  activity_log: [
+    'id', 'user_id', 'table_name', 'record_id', 'action',
+    'old_values', 'new_values', 'created_at', 'admin_id'
+  ],
+};
+
+function sanitizePayload(table: string, payload: any, activeUserId?: string | null): any {
+  if (!payload) return payload;
+  const allowed = DB_ALLOWED_COLUMNS[table];
+  const cleaned: Record<string, any> = {};
+  if (allowed) {
+    for (const col of allowed) {
+      if (col in payload && payload[col] !== undefined) {
+        cleaned[col] = payload[col];
+      }
+    }
+  } else {
+    Object.assign(cleaned, payload);
+  }
+
+  // Universal shared driving school access between Admin & Staff:
+  cleaned.admin_id = null;
+
+  // Clean UUID / nullable foreign keys to prevent syntax error:
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if ('created_by' in cleaned) {
+    if (!cleaned.created_by || !uuidRegex.test(cleaned.created_by)) {
+      cleaned.created_by = (activeUserId && uuidRegex.test(activeUserId)) ? activeUserId : null;
+    }
+  }
+  if ('assigned_vehicle_id' in cleaned && (!cleaned.assigned_vehicle_id || !uuidRegex.test(cleaned.assigned_vehicle_id))) {
+    cleaned.assigned_vehicle_id = null;
+  }
+  if ('rescheduled_from_id' in cleaned && (!cleaned.rescheduled_from_id || !uuidRegex.test(cleaned.rescheduled_from_id))) {
+    cleaned.rescheduled_from_id = null;
+  }
+  if ('reverses_payment_id' in cleaned && (!cleaned.reverses_payment_id || !uuidRegex.test(cleaned.reverses_payment_id))) {
+    cleaned.reverses_payment_id = null;
+  }
+  if ('vehicle_id' in cleaned && cleaned.vehicle_id !== null && (!cleaned.vehicle_id || !uuidRegex.test(cleaned.vehicle_id))) {
+    cleaned.vehicle_id = null;
+  }
+
+  return cleaned;
 }
 
 // --- LOCAL STORAGE DATA ENGINE CLASS ---
@@ -752,7 +889,6 @@ class DriveDeskStorage {
   public activeUserId: string | null = null;
 
   constructor() {
-    // Try to load any previously saved active user session
     try {
       const savedAuth = localStorage.getItem('gem_auth_user');
       if (savedAuth) {
@@ -767,30 +903,19 @@ class DriveDeskStorage {
 
   public setActiveUser(userId: string | null): void {
     this.activeUserId = userId;
-    this.ensureInitialized();
-  }
-
-  private getKey(key: string): string {
-    if (this.activeUserId) {
-      return `${key}_${this.activeUserId}`;
-    }
-    return key;
   }
 
   ensureInitialized(force = false) {
-    const initKey = this.getKey(STORAGE_KEYS.INIT_FLAG);
-    if (!localStorage.getItem(initKey) || force) {
-      // Clear out legacy drivedesk_* keys if default
-      if (!this.activeUserId) {
-        try {
-          Object.keys(localStorage).forEach((key) => {
-            if (key.startsWith('drivedesk_')) {
-              localStorage.removeItem(key);
-            }
-          });
-        } catch (e) {
-          console.error(e);
-        }
+    if (!localStorage.getItem(STORAGE_KEYS.INIT_FLAG) || force) {
+      // Clear out legacy drivedesk_* keys
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('drivedesk_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) {
+        console.error(e);
       }
 
       // Initialize with clean data (0 candidates, 0 appointments, 0 payments, 0 vehicles, 0 instructors)
@@ -823,12 +948,12 @@ class DriveDeskStorage {
           table_name: 'system',
           record_id: 'seed-0',
           action: 'INSERT',
-          details: 'Initialized Gem Driving School with clean database',
+          details: 'Initialized Gem Driving School database',
           created_at: new Date().toISOString(),
         },
       ];
       this.set(STORAGE_KEYS.ACTIVITY_LOG, initialActivity);
-      localStorage.setItem(initKey, 'true');
+      localStorage.setItem(STORAGE_KEYS.INIT_FLAG, 'true');
     }
   }
 
@@ -856,11 +981,10 @@ class DriveDeskStorage {
     this.clearAllData();
   }
 
-  // Generic getter / setter scoped by active admin
+  // Generic getter / setter for shared driving school data
   private get<T>(key: string, defaultValue: T): T {
     try {
-      const scopedKey = this.getKey(key);
-      const item = localStorage.getItem(scopedKey);
+      const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue;
     } catch (e) {
       console.error(`Error reading ${key}:`, e);
@@ -870,98 +994,66 @@ class DriveDeskStorage {
 
   private set<T>(key: string, value: T): void {
     try {
-      const scopedKey = this.getKey(key);
-      localStorage.setItem(scopedKey, JSON.stringify(value));
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
       console.error(`Error saving ${key}:`, e);
     }
   }
 
-  // --- CLOUD SYNC ENGINE (Supabase Multi-Device & Multi-Tenant Persistence) ---
+  // --- CLOUD SYNC ENGINE (Supabase Direct Persistence for Admin & Staff) ---
   public async syncToCloud(
     table: string,
     action: 'insert' | 'update' | 'upsert' | 'delete',
     payload?: any,
     id?: string
-  ): Promise<void> {
-    if (!supabase) return;
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!supabase) return { success: false, error: 'Supabase client not initialized' };
     try {
-      // Clean and attach admin_id to payload for multi-tenancy
-      let cleanPayload = payload ? { ...payload } : undefined;
-      if (cleanPayload) {
-        if (this.activeUserId) {
-          cleanPayload.admin_id = this.activeUserId;
-        }
-        if ('created_by' in cleanPayload) {
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (!cleanPayload.created_by || !uuidRegex.test(cleanPayload.created_by)) {
-            cleanPayload.created_by = this.activeUserId || null;
-          }
-        }
-      }
+      const cleanPayload = payload ? sanitizePayload(table, payload, this.activeUserId) : undefined;
 
       if (action === 'insert' && cleanPayload) {
         const { error } = await supabase.from(table).insert([cleanPayload]);
         if (error) {
           console.warn(`Supabase cloud insert warning (${table}):`, error.message);
-          // Fallback if admin_id column not yet created in table
-          if (error.message.includes('admin_id')) {
-            const { admin_id, ...fallbackPayload } = cleanPayload;
-            await supabase.from(table).insert([fallbackPayload]);
-          }
+          return { success: false, error: error.message };
         }
       } else if (action === 'update' && id && cleanPayload) {
         const { error } = await supabase.from(table).update(cleanPayload).eq('id', id);
         if (error) {
           console.warn(`Supabase cloud update warning (${table}):`, error.message);
-          if (error.message.includes('admin_id')) {
-            const { admin_id, ...fallbackPayload } = cleanPayload;
-            await supabase.from(table).update(fallbackPayload).eq('id', id);
-          }
+          return { success: false, error: error.message };
         }
       } else if (action === 'upsert' && cleanPayload) {
         const { error } = await supabase.from(table).upsert([cleanPayload]);
         if (error) {
           console.warn(`Supabase cloud upsert warning (${table}):`, error.message);
-          if (error.message.includes('admin_id')) {
-            const { admin_id, ...fallbackPayload } = cleanPayload;
-            await supabase.from(table).upsert([fallbackPayload]);
-          }
+          return { success: false, error: error.message };
         }
       } else if (action === 'delete' && id) {
         const { error } = await supabase.from(table).delete().eq('id', id);
-        if (error) console.warn(`Supabase cloud delete warning (${table}):`, error.message);
+        if (error) {
+          console.warn(`Supabase cloud delete warning (${table}):`, error.message);
+          return { success: false, error: error.message };
+        }
       }
-    } catch (err) {
+      return { success: true };
+    } catch (err: any) {
       console.warn(`Supabase cloud sync error (${table}):`, err);
+      return { success: false, error: err?.message || 'Sync error' };
     }
   }
 
   public async syncFromCloud(): Promise<boolean> {
     if (!supabase) return false;
     try {
-      if (!this.activeUserId) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.id) {
-          this.activeUserId = session.user.id;
-        }
-      }
-      const currentUid = this.activeUserId;
-
-      // Safe multi-tenant query helper
+      // Direct query helper for all school records
       const queryTable = async (table: string, filterDeleted = false) => {
         try {
           let q = supabase!.from(table).select('*');
           if (filterDeleted) {
             q = q.is('deleted_at', null);
           }
-          if (currentUid) {
-            const res = await q.eq('admin_id', currentUid);
-            if (!res.error) return res.data || [];
-          }
-          let fallback = supabase!.from(table).select('*');
-          if (filterDeleted) fallback = fallback.is('deleted_at', null);
-          const res = await fallback;
+          const res = await q;
           return res.data || [];
         } catch {
           return [];
@@ -977,14 +1069,36 @@ class DriveDeskStorage {
         queryTable('instructors'),
         queryTable('expenses'),
         queryTable('packages'),
-        supabase.from('settings').select('*').maybeSingle().then(r => r.data).catch(() => null),
+        supabase.from('settings').select('*').maybeSingle().then((r) => r.data).catch(() => null),
         queryTable('candidate_notes'),
         queryTable('rto_tracking'),
       ]);
 
-      // --- SAFE BIDIRECTIONAL SYNC ---
-      // If cloud has records, hydrate local cache.
-      // If cloud is empty for this admin, push local records to cloud (NEVER WIPE OUT LOCAL DATA!)
+      // Seed Packages if empty in cloud
+      if (!pkgs || pkgs.length === 0) {
+        try {
+          await supabase.from('packages').upsert(DEFAULT_PACKAGES.map((p) => ({ ...p, admin_id: null })));
+        } catch (e) {
+          console.warn(e);
+        }
+        this.set(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
+      } else {
+        this.set(STORAGE_KEYS.PACKAGES, pkgs);
+      }
+
+      // Seed Settings if empty in cloud
+      if (!sett) {
+        try {
+          await supabase.from('settings').upsert([{ ...DEFAULT_SETTINGS, admin_id: null }]);
+        } catch (e) {
+          console.warn(e);
+        }
+        this.set(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+      } else {
+        this.set(STORAGE_KEYS.SETTINGS, sett);
+      }
+
+      // Safe Bidirectional Hydration for School Records
       if (cands && cands.length > 0) {
         this.set(STORAGE_KEYS.CANDIDATES, cands);
       } else {
@@ -1062,12 +1176,6 @@ class DriveDeskStorage {
         }
       }
 
-      if (pkgs && pkgs.length > 0) {
-        this.set(STORAGE_KEYS.PACKAGES, pkgs);
-      }
-      if (sett) {
-        this.set(STORAGE_KEYS.SETTINGS, sett);
-      }
       if (notes && notes.length > 0) {
         this.set(STORAGE_KEYS.NOTES, notes);
       }
@@ -1200,7 +1308,16 @@ class DriveDeskStorage {
 
   getEnrollments(candidateId?: string): Enrollment[] {
     const list = this.get<Enrollment[]>(STORAGE_KEYS.ENROLLMENTS, []);
-    return candidateId ? list.filter((e) => e.candidate_id === candidateId) : list;
+    const packages = this.getPackages();
+    const enriched = list.map((e) => {
+      const pkg = packages.find((p) => p.id === e.package_id);
+      return {
+        ...e,
+        package_name: e.package_name || pkg?.name || 'Driving Package',
+        vehicle_type: e.vehicle_type || pkg?.vehicle_type || 'car',
+      };
+    });
+    return candidateId ? enriched.filter((e) => e.candidate_id === candidateId) : enriched;
   }
 
   getEnrollmentById(id: string): Enrollment | undefined {
@@ -1412,6 +1529,45 @@ class DriveDeskStorage {
     this.syncToCloud('rto_tracking', 'insert', newRTO);
 
     return { candidate: newCandidate, enrollment: newEnrollment, payment: recordedPayment };
+  }
+
+  async createCandidateWithEnrollmentAsync(
+    candidateData: Omit<Candidate, 'id' | 'candidate_code' | 'deleted_at' | 'created_at' | 'updated_at'>,
+    packageSelection: {
+      package_id: string;
+      total_classes: number;
+      total_fee: number;
+      discount_amount: number;
+      start_date: string;
+    },
+    initialPayment?: {
+      amount: number;
+      mode: 'cash' | 'upi' | 'card' | 'bank_transfer' | 'online';
+      remarks?: string;
+    },
+    role: UserRole = 'admin'
+  ): Promise<{ candidate: Candidate; enrollment: Enrollment; payment?: Payment }> {
+    // 1. Save locally first for snappy UI
+    const result = this.createCandidateWithEnrollment(candidateData, packageSelection, initialPayment, role);
+
+    // 2. Directly await Supabase Cloud writes so it persists across all devices & incognito
+    if (supabase) {
+      try {
+        await this.syncToCloud('candidates', 'insert', result.candidate);
+        await this.syncToCloud('enrollments', 'insert', result.enrollment);
+        if (result.payment) {
+          await this.syncToCloud('payments', 'insert', result.payment);
+        }
+        const rtoRecord = this.getRTORecordByCandidateId(result.candidate.id);
+        if (rtoRecord) {
+          await this.syncToCloud('rto_tracking', 'insert', rtoRecord);
+        }
+      } catch (err) {
+        console.warn('Direct cloud sync error on candidate creation:', err);
+      }
+    }
+
+    return result;
   }
 
   updateCandidate(id: string, updates: Partial<Candidate>, role: UserRole = 'admin'): Candidate {

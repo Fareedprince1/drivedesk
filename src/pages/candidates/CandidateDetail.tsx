@@ -20,6 +20,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
+import { supabase } from '../../lib/supabase';
 import type {
   Candidate,
   Enrollment,
@@ -57,6 +58,8 @@ export const CandidateDetail: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [rtoRecord, setRtoRecord] = useState<RTOTrainingRecord | null>(null);
   const [notes, setNotes] = useState<CandidateNote[]>([]);
+  const [loadingCandidate, setLoadingCandidate] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   // Modals
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -76,35 +79,117 @@ export const CandidateDetail: React.FC = () => {
   const [newNoteText, setNewNoteText] = useState('');
   const [newFollowUpDate, setNewFollowUpDate] = useState('');
 
-  const loadData = () => {
+  const loadData = async () => {
     if (!id) return;
-    const cand = db.getCandidateById(id);
+    setLoadingCandidate(true);
+    setNotFound(false);
+
+    // 1. Check local storage first
+    let cand = db.getCandidateById(id);
+
+    // 2. Direct Supabase Cloud fallback (incognito or new device)
+    if (!cand && supabase) {
+      try {
+        const { data: cloudCand } = await supabase
+          .from('candidates')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (cloudCand) {
+          cand = cloudCand;
+          const localCands = db.getCandidates(true);
+          if (!localCands.some((c) => c.id === cloudCand.id)) {
+            localCands.push(cloudCand);
+            localStorage.setItem('gem_candidates', JSON.stringify(localCands));
+          }
+        }
+      } catch (err) {
+        console.warn('Direct cloud candidate fetch warning:', err);
+      }
+    }
+
     if (!cand) {
-      navigate('/candidates');
+      setLoadingCandidate(false);
+      setNotFound(true);
       return;
     }
+
     setCandidate(cand);
 
-    const enrs = db.getEnrollments(id);
+    // Enrollments
+    let enrs = db.getEnrollments(id);
+    if (enrs.length === 0 && supabase) {
+      try {
+        const { data: cloudEnrs } = await supabase
+          .from('enrollments')
+          .select('*')
+          .eq('candidate_id', id);
+
+        if (cloudEnrs && cloudEnrs.length > 0) {
+          const localEnrs = db.getEnrollments();
+          const toAdd = cloudEnrs.filter((ce: any) => !localEnrs.some((e) => e.id === ce.id));
+          if (toAdd.length > 0) {
+            localEnrs.push(...toAdd);
+            localStorage.setItem('gem_enrollments', JSON.stringify(localEnrs));
+          }
+          enrs = db.getEnrollments(id);
+        }
+      } catch (err) {
+        console.warn('Direct cloud enrollment fetch warning:', err);
+      }
+    }
+
     setEnrollments(enrs);
-    const active = enrs.find((e) => e.status === 'active') || enrs[0];
+    const active = enrs.find((e) => e.status === 'active') || enrs[0] || null;
     setSelectedEnrollment(active);
 
     setAppointments(db.getAppointments({ candidateId: id }));
     setPayments(db.getPayments());
     setRtoRecord(db.getRTORecordByCandidateId(id) || null);
     setNotes(db.getCandidateNotes(id));
+    setLoadingCandidate(false);
   };
 
   useEffect(() => {
     loadData();
+    const handleSync = () => loadData();
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('drivedesk_sync_complete', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('drivedesk_sync_complete', handleSync);
+    };
   }, [id]);
 
-  if (!candidate || !selectedEnrollment) {
-    return <div className="p-8 text-center text-sm text-slate-500">Loading candidate details...</div>;
+  if (loadingCandidate) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading candidate details...</p>
+      </div>
+    );
   }
 
-  const stats = db.calculateEnrollmentStats(selectedEnrollment.id);
+  if (notFound || !candidate) {
+    return (
+      <div className="min-h-[300px] flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
+        <AlertCircle className="w-10 h-10 text-amber-500" />
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">Candidate Not Found</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+          The candidate record could not be found in local records or Supabase Cloud.
+        </p>
+        <button
+          onClick={() => navigate('/candidates')}
+          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+        >
+          Back to Candidates List
+        </button>
+      </div>
+    );
+  }
+
+  const stats = selectedEnrollment ? db.calculateEnrollmentStats(selectedEnrollment.id) : null;
   const candidatePayments = payments.filter((p) => p.candidate_id === candidate.id);
   const candidateAppointments = appointments.filter((a) => a.candidate_id === candidate.id);
 
@@ -117,14 +202,18 @@ export const CandidateDetail: React.FC = () => {
   // Smart suggestion check: completed classes + licence received
   const shouldSuggestCompleted =
     candidate.status !== 'completed' &&
-    stats &&
-    stats.classes_remaining === 0 &&
+    Boolean(stats) &&
+    stats?.classes_remaining === 0 &&
     rtoRecord?.stage === 'licence_received';
 
   // Record Payment
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
     setPayError('');
+    if (!selectedEnrollment) {
+      setPayError('Please enroll this candidate in a training package before recording course payments.');
+      return;
+    }
     if (!stats) return;
 
     if (payAmount <= 0) {
@@ -208,7 +297,7 @@ export const CandidateDetail: React.FC = () => {
       </div>
 
       {/* Auto-suggest completion banner */}
-      {shouldSuggestCompleted && (
+      {shouldSuggestCompleted && selectedEnrollment && (
         <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-between gap-4 animate-fade-in">
           <div className="flex items-center gap-3">
             <Sparkles className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0" />
@@ -278,16 +367,18 @@ export const CandidateDetail: React.FC = () => {
               <span>WhatsApp</span>
             </a>
 
-            <button
-              onClick={() => {
-                setPayAmount(stats?.balance || 0);
-                setIsPayModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-xs transition cursor-pointer"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Record Payment</span>
-            </button>
+            {selectedEnrollment && (
+              <button
+                onClick={() => {
+                  setPayAmount(stats?.balance || 0);
+                  setIsPayModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-xs transition cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Record Payment</span>
+              </button>
+            )}
 
             <button
               onClick={() => navigate(`/appointments?action=book&candidateId=${candidate.id}`)}
@@ -306,10 +397,10 @@ export const CandidateDetail: React.FC = () => {
               Package Enrolled
             </span>
             <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1 truncate">
-              {selectedEnrollment.package_name}
+              {selectedEnrollment?.package_name || 'No Course Enrolled'}
             </div>
             <span className="text-[11px] text-teal-600 font-semibold">
-              {selectedEnrollment.vehicle_type?.toUpperCase()} Training
+              {selectedEnrollment?.vehicle_type ? `${selectedEnrollment.vehicle_type.toUpperCase()} Training` : 'Pending Enrollment'}
             </span>
           </div>
 
@@ -318,10 +409,10 @@ export const CandidateDetail: React.FC = () => {
               Classes Progress
             </span>
             <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-              {stats?.classes_completed} / {selectedEnrollment.total_classes} Completed
+              {stats?.classes_completed || 0} / {selectedEnrollment?.total_classes || 0} Completed
             </div>
             <span className="text-[11px] text-slate-500">
-              {stats?.classes_remaining} classes remaining
+              {stats?.classes_remaining || 0} classes remaining
             </span>
           </div>
 
@@ -330,10 +421,10 @@ export const CandidateDetail: React.FC = () => {
               Fees & Paid
             </span>
             <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-              {formatINR(stats?.amount_paid)} <span className="text-slate-400 text-xs font-normal">of {formatINR(stats?.net_fee)}</span>
+              {formatINR(stats?.amount_paid || 0)} <span className="text-slate-400 text-xs font-normal">of {formatINR(stats?.net_fee || 0)}</span>
             </div>
             <span className="text-[11px] text-slate-500">
-              Discount: {formatINR(selectedEnrollment.discount_amount)}
+              Discount: {formatINR(selectedEnrollment?.discount_amount || 0)}
             </span>
           </div>
 
@@ -348,7 +439,7 @@ export const CandidateDetail: React.FC = () => {
             <div className={`text-base font-black mt-1 ${
               (stats?.balance || 0) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'
             }`}>
-              {formatINR(stats?.balance)}
+              {formatINR(stats?.balance || 0)}
             </div>
             <span className="text-[11px] font-semibold text-slate-500">
               {(stats?.balance || 0) > 0 ? 'Payment due' : 'Fully Cleared'}
@@ -468,36 +559,42 @@ export const CandidateDetail: React.FC = () => {
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">
               Active Enrollment & Package
             </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500">Package Name</span>
-                <span className="font-bold">{selectedEnrollment.package_name}</span>
+            {selectedEnrollment ? (
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Package Name</span>
+                  <span className="font-bold">{selectedEnrollment.package_name}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Course Start Date</span>
+                  <span>{formatDate(selectedEnrollment.start_date)}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Course Expiry Date</span>
+                  <span>{selectedEnrollment.expiry_date ? formatDate(selectedEnrollment.expiry_date) : 'No expiry'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Total Classes Booked</span>
+                  <span className="font-mono">{selectedEnrollment.total_classes}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Base Fee</span>
+                  <span className="font-mono">{formatINR(selectedEnrollment.total_fee)}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Discount Concession</span>
+                  <span className="font-mono text-emerald-600">-{formatINR(selectedEnrollment.discount_amount)}</span>
+                </div>
+                <div className="flex justify-between py-1.5 font-bold">
+                  <span className="text-slate-900 dark:text-white">Net Course Fee</span>
+                  <span className="font-mono text-teal-600">{formatINR(stats?.net_fee || 0)}</span>
+                </div>
               </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500">Course Start Date</span>
-                <span>{formatDate(selectedEnrollment.start_date)}</span>
+            ) : (
+              <div className="text-center py-6 text-slate-400 space-y-2">
+                <p className="text-xs">No active driving course package enrolled yet.</p>
               </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500">Course Expiry Date</span>
-                <span>{selectedEnrollment.expiry_date ? formatDate(selectedEnrollment.expiry_date) : 'No expiry'}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500">Total Classes Booked</span>
-                <span className="font-mono">{selectedEnrollment.total_classes}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500">Base Fee</span>
-                <span className="font-mono">{formatINR(selectedEnrollment.total_fee)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500">Discount Concession</span>
-                <span className="font-mono text-emerald-600">-{formatINR(selectedEnrollment.discount_amount)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 font-bold">
-                <span className="text-slate-900 dark:text-white">Net Course Fee</span>
-                <span className="font-mono text-teal-600">{formatINR(stats?.net_fee)}</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -910,7 +1007,7 @@ export const CandidateDetail: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Course / Package:</span>
-                  <span>{selectedEnrollment.package_name}</span>
+                  <span>{selectedEnrollment?.package_name || 'Driving Course'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Payment Mode:</span>

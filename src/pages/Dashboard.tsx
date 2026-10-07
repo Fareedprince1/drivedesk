@@ -30,6 +30,17 @@ import { useAuth } from '../context/AuthContext';
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin, role } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  React.useEffect(() => {
+    const handleSync = () => setRefreshKey((k) => k + 1);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('drivedesk_sync_complete', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('drivedesk_sync_complete', handleSync);
+    };
+  }, []);
 
   const today = getTodayIST();
   const candidates = db.getCandidatesWithStats();
@@ -97,7 +108,7 @@ export const Dashboard: React.FC = () => {
   // Quick Action for today's appointment status
   const handleQuickStatus = (appId: string, status: 'completed' | 'absent') => {
     db.updateAppointmentStatus(appId, status, undefined, role);
-    navigate(0);
+    setRefreshKey((k) => k + 1);
   };
 
   return (
