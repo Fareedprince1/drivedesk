@@ -360,6 +360,47 @@ CREATE POLICY "Anyone authenticated can view packages" ON packages
 CREATE POLICY "Only admin can manage packages" ON packages
     FOR ALL TO authenticated USING (current_user_role() = 'admin');
 
+-- User Roles Policies
+CREATE POLICY "Users can read own role" ON user_roles
+    FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own role" ON user_roles
+    FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can view all roles" ON user_roles
+    FOR SELECT TO authenticated USING (
+        EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+    );
+CREATE POLICY "Admins can manage roles" ON user_roles
+    FOR ALL TO authenticated USING (
+        EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+    );
+
+-- Auto-assign role on user signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+    user_count INT;
+    assigned_role VARCHAR(20);
+BEGIN
+    SELECT COUNT(*) INTO user_count FROM user_roles;
+    IF user_count = 0 THEN
+        assigned_role := 'admin';
+    ELSE
+        assigned_role := COALESCE(new.raw_user_meta_data->>'role', 'staff');
+    END IF;
+
+    INSERT INTO user_roles (user_id, role)
+    VALUES (new.id, assigned_role)
+    ON CONFLICT (user_id) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
 -- =====================================================================
 -- SEED INITIAL DATA
 -- =====================================================================

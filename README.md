@@ -143,6 +143,9 @@ To run your own Supabase backend:
    - 3 partial unique indexes preventing appointment double-booking overlaps
    - Row Level Security (RLS) policies
    - Automated timestamp triggers and views
+   - Real Supabase authentication role trigger (`handle_new_user()`)
+
+5. *(Optional)* If you already ran `schema.sql` earlier and want to configure live user roles and auto-confirmation, run [`supabase/auth_setup.sql`](./supabase/auth_setup.sql) in your SQL editor.
 
 ---
 

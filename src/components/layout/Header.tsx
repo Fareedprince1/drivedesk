@@ -6,10 +6,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   Menu,
-  X,
   LogOut,
   User,
-  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/storage';
@@ -20,7 +18,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch }) => {
-  const { user, role, isAdmin, switchRole, logout } = useAuth();
+  const { user, role, isAdmin, logout } = useAuth();
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || 
       (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -75,57 +73,45 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch
           </button>
         </div>
 
-        {/* Right Actions: Role Switcher Demo, Dark Mode, Profile */}
+        {/* Right Actions: Dark Mode, Real User Profile & Logout */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Role Switcher for instant permission testing */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => switchRole('admin')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
-                isAdmin
-                  ? 'bg-teal-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-              title="Switch to Admin mode"
-            >
-              Admin
-            </button>
-            <button
-              onClick={() => switchRole('staff')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
-                !isAdmin
-                  ? 'bg-amber-500 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-              title="Switch to Staff (Receptionist) mode to verify restrictions"
-            >
-              Staff
-            </button>
+          {/* Real Authenticated Role Badge */}
+          <div className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
+            isAdmin
+              ? 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800'
+              : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+          }`}>
+            {isAdmin ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            ) : (
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            )}
+            <span>{isAdmin ? 'ADMIN' : 'STAFF'}</span>
           </div>
 
           {/* Dark Mode Toggle */}
           <button
             onClick={() => setIsDark(!isDark)}
-            className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             aria-label="Toggle theme"
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
-          {/* User profile menu */}
+          {/* Real User Profile Menu & Logout */}
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
             <div className="hidden md:block text-right">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                {user?.name || 'Administrator'}
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px]">
+                {user?.name || user?.email?.split('@')[0] || 'User'}
               </div>
-              <div className="text-[10px] uppercase font-semibold text-teal-600 dark:text-teal-400">
-                {role}
+              <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                {user?.email}
               </div>
             </div>
             <button
-              onClick={logout}
-              title="Logout"
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+              onClick={() => logout()}
+              title="Sign Out"
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>

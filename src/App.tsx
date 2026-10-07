@@ -16,9 +16,22 @@ import { DrivingTestsPage } from './pages/rto/DrivingTestsPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 
+// Full Screen Loading Indicator while restoring Supabase session
+const FullScreenLoader: React.FC = () => (
+  <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300">
+    <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4" />
+    <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+      Loading DriveDesk...
+    </div>
+  </div>
+);
+
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return <FullScreenLoader />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -27,7 +40,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Admin Only Route Wrapper
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+  if (loading) {
+    return <FullScreenLoader />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -37,12 +53,24 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Public Login Route - Redirects to Dashboard if already authenticated
+const PublicLoginRoute: React.FC = () => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return <FullScreenLoader />;
+  }
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  return <Login />;
+};
+
 export const App: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<PublicLoginRoute />} />
 
           <Route
             path="/"

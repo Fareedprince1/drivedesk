@@ -23,7 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { exportToJSON } from '../../lib/exportUtils';
 
 export const SettingsPage: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<'packages' | 'profile' | 'rules' | 'staff' | 'logs'>('packages');
 
   const [packages, setPackages] = useState<Package[]>(() => db.getPackages());
@@ -485,26 +485,42 @@ export const SettingsPage: React.FC = () => {
 
       {/* TAB CONTENT: STAFF & ROLES */}
       {activeTab === 'staff' && (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-w-2xl">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Team Roles & Access Control</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Roles are stored strictly in the separate <code className="text-teal-600">user_roles</code> table (never on the profile). Authenticated users with the 'staff' role can book classes, manage candidates, and collect payments, but cannot view Expenses, Reports, or modify Packages.
-          </p>
+        <div className="space-y-6 max-w-2xl">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Team Roles & Access Control</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Roles are stored strictly in the separate <code className="text-teal-600">user_roles</code> table (never on the profile). Authenticated users with the 'staff' role can book classes, manage candidates, and collect payments, but cannot view Expenses, Reports, or modify Packages.
+            </p>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            <div className="py-3 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-sm text-slate-900 dark:text-white">Vikram Mehta (Owner)</div>
-                <div className="text-xs text-slate-400">owner@drivedesk.in</div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 pt-2">
+              <div className="py-3 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>{user?.name || 'Administrator'}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-semibold">You</span>
+                  </div>
+                  <div className="text-xs text-slate-400">{user?.email}</div>
+                </div>
+                <Badge variant="teal">{user?.role?.toUpperCase() || 'ADMIN'}</Badge>
               </div>
-              <Badge variant="teal">ADMIN</Badge>
             </div>
-            <div className="py-3 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-sm text-slate-900 dark:text-white">Pooja Nair (Reception Desk)</div>
-                <div className="text-xs text-slate-400">reception@drivedesk.in</div>
-              </div>
-              <Badge variant="yellow">STAFF</Badge>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Plus className="w-4 h-4 text-teal-600" />
+              <span>Create New Staff Account (Reception Desk)</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Admins can register new receptionist staff accounts in Supabase. Staff can manage morning bookings and candidate admissions without seeing expenses or reports.
+            </p>
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-2">
+              <div className="font-semibold text-slate-800 dark:text-slate-200">How to add staff members:</div>
+              <ul className="list-disc list-inside space-y-1 text-slate-500 dark:text-slate-400">
+                <li>Tell your receptionist to register directly on the <strong>Create Account</strong> tab at the <a href="/login" className="text-teal-600 underline">Login Portal</a> with role <strong>Staff</strong>.</li>
+                <li>Or invite them by email directly from your <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-teal-600 underline">Supabase Authentication Dashboard</a>.</li>
+                <li>Their permissions will automatically restrict them from Expenses, Reports, and Settings.</li>
+              </ul>
             </div>
           </div>
         </div>
