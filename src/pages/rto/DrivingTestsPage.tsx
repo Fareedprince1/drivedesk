@@ -180,22 +180,26 @@ export const DrivingTestsPage: React.FC = () => {
 
     return rtoRecords
       .map((rto) => {
-        const candidate = candidates.find((c) => c.id === rto.candidate_id);
-        const enrollment =
+        const foundEnrollment =
           enrollments.find((e) => e.id === rto.enrollment_id) ||
-          enrollments.find((e) => e.candidate_id === rto.candidate_id) || {
-            id: 'generic',
-            package_id: '',
-            total_classes: 20,
-            total_fee: 0,
-            discount_amount: 0,
-            start_date: today,
-            status: 'active' as const,
-            candidate_id: rto.candidate_id,
-            created_at: today,
-            updated_at: today,
-          };
+          enrollments.find((e) => e.candidate_id === rto.candidate_id);
+        const candidate =
+          candidates.find((c) => c.id === rto.candidate_id) ||
+          (foundEnrollment ? candidates.find((c) => c.id === foundEnrollment.candidate_id) : undefined);
         if (!candidate) return null;
+
+        const enrollment = foundEnrollment || {
+          id: rto.enrollment_id || 'generic',
+          package_id: '',
+          total_classes: 20,
+          total_fee: 0,
+          discount_amount: 0,
+          start_date: today,
+          status: 'active' as const,
+          candidate_id: candidate.id,
+          created_at: today,
+          updated_at: today,
+        };
 
         const pkg = packages.find((p) => p.id === enrollment.package_id);
 
@@ -429,7 +433,24 @@ export const DrivingTestsPage: React.FC = () => {
     if (!newTestCandidateId) return;
 
     const candidateEnrollments = db.getEnrollments().filter((en) => en.candidate_id === newTestCandidateId);
-    const enrollmentId = candidateEnrollments[0]?.id || '';
+    let enrollmentId = candidateEnrollments[0]?.id;
+
+    if (!enrollmentId) {
+      const pkg = db.getPackages(true)[0];
+      const newEnrollment = db.createEnrollment(
+        {
+          candidate_id: newTestCandidateId,
+          package_id: pkg?.id || '',
+          start_date: today,
+          total_classes: pkg?.total_classes || 20,
+          total_fee: pkg?.fee || 0,
+          discount_amount: 0,
+          status: 'active',
+        },
+        currentRole
+      );
+      enrollmentId = newEnrollment.id;
+    }
 
     db.createRTORecord(
       {

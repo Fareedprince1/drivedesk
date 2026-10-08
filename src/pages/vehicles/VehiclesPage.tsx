@@ -142,6 +142,7 @@ export const VehiclesPage: React.FC = () => {
       },
       role
     );
+    setDataVersion((v) => v + 1);
     setIsAddModalOpen(false);
   };
 
@@ -164,12 +165,14 @@ export const VehiclesPage: React.FC = () => {
       },
       role
     );
+    setDataVersion((v) => v + 1);
     setIsEditModalOpen(false);
   };
 
   const handleQuickStatusChange = (status: VehicleStatus) => {
     if (!selectedVehicle) return;
     db.updateVehicle(selectedVehicle.id, { status }, role);
+    setDataVersion((v) => v + 1);
   };
 
   return (

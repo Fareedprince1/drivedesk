@@ -54,8 +54,10 @@ export const InstructorsPage: React.FC = () => {
   const [leaveTo, setLeaveTo] = useState(getTodayIST());
   const [leaveReason, setLeaveReason] = useState('');
 
-  const instructors = db.getInstructors();
-  const vehicles = db.getVehicles();
+  const [dataVersion, setDataVersion] = useState(0);
+
+  const instructors = useMemo(() => db.getInstructors(), [dataVersion]);
+  const vehicles = useMemo(() => db.getVehicles(), [dataVersion]);
 
   const selectedInstructor = useMemo(() => {
     return (
@@ -81,10 +83,14 @@ export const InstructorsPage: React.FC = () => {
         `Are you sure you want to remove instructor "${name}"? This will unassign any linked vehicles.`
       )
     ) {
-      db.deleteInstructor(instructorId, role);
-      setDataVersion((v) => v + 1);
-      if (selectedInstructorId === instructorId) {
-        setSelectedInstructorId('');
+      try {
+        db.deleteInstructor(instructorId, role);
+        setDataVersion((v) => v + 1);
+        if (selectedInstructorId === instructorId) {
+          setSelectedInstructorId('');
+        }
+      } catch (err: any) {
+        alert(`Could not delete instructor: ${err?.message || err}`);
       }
     }
   };
@@ -129,6 +135,7 @@ export const InstructorsPage: React.FC = () => {
       },
       role
     );
+    setDataVersion((v) => v + 1);
     setIsAddModalOpen(false);
   };
 
@@ -149,6 +156,7 @@ export const InstructorsPage: React.FC = () => {
       },
       role
     );
+    setDataVersion((v) => v + 1);
     setIsEditModalOpen(false);
   };
 
@@ -169,6 +177,7 @@ export const InstructorsPage: React.FC = () => {
     if (today >= leaveFrom && today <= leaveTo) {
       db.updateInstructor(selectedInstructor.id, { status: 'on_leave' }, role);
     }
+    setDataVersion((v) => v + 1);
     setIsLeaveModalOpen(false);
     setLeaveReason('');
   };

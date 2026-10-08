@@ -893,6 +893,38 @@ function sanitizePayload(
     cleaned.vehicle_id = null;
   }
 
+  if (table === 'rto_tracking') {
+    // Pack test_type & rto_office metadata into remarks column so Supabase persists them
+    const metaObj: Record<string, any> = {};
+    if (payload.test_type) metaObj.test_type = payload.test_type;
+    if (payload.rto_office) metaObj.rto_office = payload.rto_office;
+
+    let userRemarks = payload.remarks || '';
+    if (typeof userRemarks === 'string' && userRemarks.startsWith('__DDMETA__:')) {
+      const nl = userRemarks.indexOf('\n');
+      userRemarks = nl !== -1 ? userRemarks.substring(nl + 1) : '';
+    }
+
+    if (Object.keys(metaObj).length > 0) {
+      cleaned.remarks = `__DDMETA__:${JSON.stringify(metaObj)}\n${userRemarks}`;
+    } else {
+      cleaned.remarks = userRemarks || null;
+    }
+
+    // Default stage if missing
+    if (!cleaned.stage) cleaned.stage = 'test_booked';
+
+    // Normalize test_result
+    if (cleaned.test_result && !['pass', 'fail', 'pending'].includes(cleaned.test_result)) {
+      cleaned.test_result = 'pending';
+    }
+
+    // Ensure candidate_id, test_type, rto_office are stripped so PostgREST does not fail
+    delete cleaned.candidate_id;
+    delete cleaned.test_type;
+    delete cleaned.rto_office;
+  }
+
   return cleaned;
 }
 
@@ -1123,16 +1155,107 @@ class DriveDeskStorage {
         this.set(STORAGE_KEYS.SETTINGS, sett);
       }
 
+      // Manage Instructors synchronization and initial seed
+      let finalInstructors = insts || [];
+      const hasSeededInstKey = `drivedesk_seeded_inst_${this.activeSchoolAdminId || 'default'}`;
+      if (!insts || insts.length === 0) {
+        if (!localStorage.getItem(hasSeededInstKey)) {
+          try {
+            await supabase.from('instructors').upsert(
+              DEFAULT_INSTRUCTORS.map((i) => ({ ...i, admin_id: this.activeSchoolAdminId || null }))
+            );
+            localStorage.setItem(hasSeededInstKey, 'true');
+          } catch (e) {
+            console.warn(e);
+          }
+          finalInstructors = DEFAULT_INSTRUCTORS;
+        } else {
+          finalInstructors = [];
+        }
+      } else {
+        localStorage.setItem(hasSeededInstKey, 'true');
+      }
+
+      // Manage Vehicles synchronization and initial seed
+      let finalVehicles = vehs || [];
+      const hasSeededVehKey = `drivedesk_seeded_veh_${this.activeSchoolAdminId || 'default'}`;
+      if (!vehs || vehs.length === 0) {
+        if (!localStorage.getItem(hasSeededVehKey)) {
+          try {
+            await supabase.from('vehicles').upsert(
+              DEFAULT_VEHICLES.map((v) => ({ ...v, admin_id: this.activeSchoolAdminId || null }))
+            );
+            localStorage.setItem(hasSeededVehKey, 'true');
+          } catch (e) {
+            console.warn(e);
+          }
+          finalVehicles = DEFAULT_VEHICLES;
+        } else {
+          finalVehicles = [];
+        }
+      } else {
+        localStorage.setItem(hasSeededVehKey, 'true');
+      }
+
+      // Hydrate RTO records with candidate linkage & test_type / rto_office metadata
+      const enrollmentList = enrs || [];
+      const existingLocalRTO = this.get<RTOTrainingRecord[]>(STORAGE_KEYS.RTO, []);
+
+      const hydratedRTO: RTOTrainingRecord[] = (rto || []).map((row: any) => {
+        let remarks = row.remarks || '';
+        let test_type = row.test_type;
+        let rto_office = row.rto_office;
+
+        if (typeof remarks === 'string' && remarks.startsWith('__DDMETA__:')) {
+          try {
+            const nl = remarks.indexOf('\n');
+            const metaJson = nl !== -1 ? remarks.substring(11, nl) : remarks.substring(11);
+            const meta = JSON.parse(metaJson);
+            if (meta.test_type) test_type = meta.test_type;
+            if (meta.rto_office) rto_office = meta.rto_office;
+            remarks = nl !== -1 ? remarks.substring(nl + 1) : '';
+          } catch {
+            // ignore
+          }
+        }
+
+        let candidate_id = row.candidate_id;
+        if (!candidate_id && row.enrollment_id) {
+          const matchedEnr = enrollmentList.find((e: any) => e.id === row.enrollment_id);
+          if (matchedEnr) candidate_id = matchedEnr.candidate_id;
+        }
+
+        const localMatch = existingLocalRTO.find((loc) => loc.id === row.id);
+        if (!candidate_id && localMatch?.candidate_id) candidate_id = localMatch.candidate_id;
+        if (!test_type && localMatch?.test_type) test_type = localMatch.test_type;
+        if (!rto_office && localMatch?.rto_office) rto_office = localMatch.rto_office;
+
+        return {
+          ...row,
+          candidate_id: candidate_id || '',
+          test_type: test_type || '4-Wheeler (Car) DL Test',
+          rto_office: rto_office || 'Indiranagar RTO (KA-03)',
+          remarks,
+        };
+      });
+
+      // Preserve any local records that were created and not yet fetched
+      for (const loc of existingLocalRTO) {
+        if (!hydratedRTO.some((r) => r.id === loc.id)) {
+          hydratedRTO.push(loc);
+        }
+      }
+
       // Direct cloud hydration - guarantees exact sync across all devices and incognito
       this.set(STORAGE_KEYS.CANDIDATES, cands || []);
       this.set(STORAGE_KEYS.ENROLLMENTS, enrs || []);
       this.set(STORAGE_KEYS.PAYMENTS, pays || []);
       this.set(STORAGE_KEYS.APPOINTMENTS, apps || []);
-      this.set(STORAGE_KEYS.VEHICLES, vehs && vehs.length > 0 ? vehs : DEFAULT_VEHICLES);
-      this.set(STORAGE_KEYS.INSTRUCTORS, insts && insts.length > 0 ? insts : DEFAULT_INSTRUCTORS);
+      this.set(STORAGE_KEYS.VEHICLES, finalVehicles);
+      this.set(STORAGE_KEYS.INSTRUCTORS, finalInstructors);
       this.set(STORAGE_KEYS.EXPENSES, exps || []);
       this.set(STORAGE_KEYS.NOTES, notes || []);
-      this.set(STORAGE_KEYS.RTO, rto || []);
+      this.set(STORAGE_KEYS.RTO, hydratedRTO);
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('drivedesk_sync_complete'));
@@ -1284,6 +1407,24 @@ class DriveDeskStorage {
 
   getEnrollmentById(id: string): Enrollment | undefined {
     return this.getEnrollments().find((e) => e.id === id);
+  }
+
+  createEnrollment(
+    data: Omit<Enrollment, 'id' | 'created_at' | 'updated_at'>,
+    role: UserRole = 'admin'
+  ): Enrollment {
+    const list = this.get<Enrollment[]>(STORAGE_KEYS.ENROLLMENTS, []);
+    const newEnrollment: Enrollment = {
+      ...data,
+      id: generateUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    list.push(newEnrollment);
+    this.set(STORAGE_KEYS.ENROLLMENTS, list);
+    this.logActivity('INSERT', 'enrollments', newEnrollment.id, `Created enrollment for candidate`, undefined, newEnrollment, role);
+    this.syncToCloud('enrollments', 'insert', newEnrollment);
+    return newEnrollment;
   }
 
   // CALCULATE STATS (DO NOT store derived numbers)
@@ -1750,6 +1891,7 @@ class DriveDeskStorage {
     const old = list[idx];
     list.splice(idx, 1);
     this.set(STORAGE_KEYS.INSTRUCTORS, list);
+
     // Unassign this instructor from any vehicle
     const vehicles = this.getVehicles();
     vehicles.forEach((v) => {
@@ -1757,8 +1899,28 @@ class DriveDeskStorage {
         this.updateVehicle(v.id, { assigned_instructor_id: null }, role);
       }
     });
+
+    // Clear any appointments booked for this instructor locally
+    const appointments = this.getAppointments();
+    const remainingAppointments = appointments.filter((a) => a.instructor_id !== id);
+    if (remainingAppointments.length !== appointments.length) {
+      this.set(STORAGE_KEYS.APPOINTMENTS, remainingAppointments);
+    }
+
+    // In Supabase, delete any appointments for this instructor first so foreign keys don't block deletion
+    if (supabase) {
+      supabase
+        .from('appointments')
+        .delete()
+        .eq('instructor_id', id)
+        .then(() => {
+          this.syncToCloud('instructors', 'delete', undefined, id);
+        });
+    } else {
+      this.syncToCloud('instructors', 'delete', undefined, id);
+    }
+
     this.logActivity('DELETE', 'instructors', id, `Deleted instructor ${old.name}`, old, undefined, role);
-    this.syncToCloud('instructors', 'delete', undefined, id);
   }
 
   getInstructorLeaves(instructorId?: string): InstructorLeave[] {
@@ -1827,6 +1989,7 @@ class DriveDeskStorage {
     const old = list[idx];
     list.splice(idx, 1);
     this.set(STORAGE_KEYS.VEHICLES, list);
+
     // Unassign vehicle from any instructor
     const instructors = this.getInstructors();
     instructors.forEach((i) => {
@@ -1834,8 +1997,28 @@ class DriveDeskStorage {
         this.updateInstructor(i.id, { assigned_vehicle_id: null }, role);
       }
     });
+
+    // Clear any appointments booked for this vehicle locally
+    const appointments = this.getAppointments();
+    const remainingAppointments = appointments.filter((a) => a.vehicle_id !== id);
+    if (remainingAppointments.length !== appointments.length) {
+      this.set(STORAGE_KEYS.APPOINTMENTS, remainingAppointments);
+    }
+
+    // In Supabase, delete any appointments for this vehicle first so foreign keys don't block deletion
+    if (supabase) {
+      supabase
+        .from('appointments')
+        .delete()
+        .eq('vehicle_id', id)
+        .then(() => {
+          this.syncToCloud('vehicles', 'delete', undefined, id);
+        });
+    } else {
+      this.syncToCloud('vehicles', 'delete', undefined, id);
+    }
+
     this.logActivity('DELETE', 'vehicles', id, `Deleted vehicle ${old.registration_number}`, old, undefined, role);
-    this.syncToCloud('vehicles', 'delete', undefined, id);
   }
 
   // --- HOLIDAYS ---
@@ -2380,12 +2563,16 @@ class DriveDeskStorage {
     return this.get<RTOTrainingRecord[]>(STORAGE_KEYS.RTO, []);
   }
 
-  getRTORecordByCandidateId(candidateId: string): RTOTrainingRecord | undefined {
-    return this.getRTORecords().find((r) => r.candidate_id === candidateId);
+  getRTORecordsByCandidateId(candidateId: string): RTOTrainingRecord[] {
+    const enrollments = this.getEnrollments().filter((e) => e.candidate_id === candidateId);
+    const enrollmentIds = new Set(enrollments.map((e) => e.id));
+    return this.getRTORecords().filter(
+      (r) => r.candidate_id === candidateId || (r.enrollment_id && enrollmentIds.has(r.enrollment_id))
+    );
   }
 
-  getRTORecordsByCandidateId(candidateId: string): RTOTrainingRecord[] {
-    return this.getRTORecords().filter((r) => r.candidate_id === candidateId);
+  getRTORecordByCandidateId(candidateId: string): RTOTrainingRecord | undefined {
+    return this.getRTORecordsByCandidateId(candidateId)[0];
   }
 
   createRTORecord(

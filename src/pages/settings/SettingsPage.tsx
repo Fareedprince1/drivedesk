@@ -24,7 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import { exportToJSON } from '../../lib/exportUtils';
 
 export const SettingsPage: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, role } = useAuth();
   const [activeTab, setActiveTab] = useState<'packages' | 'profile' | 'rules' | 'staff' | 'logs'>('packages');
 
   const [packages, setPackages] = useState<Package[]>(() => db.getPackages());
