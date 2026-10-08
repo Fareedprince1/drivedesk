@@ -13,6 +13,7 @@ import {
   GraduationCap,
   Download,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
@@ -192,6 +193,19 @@ export const CandidateDetail: React.FC = () => {
   const handleStatusChange = (newStatus: CandidateStatus) => {
     db.updateCandidate(candidate.id, { status: newStatus }, role);
     setCandidate({ ...candidate, status: newStatus });
+  };
+
+  // Remove Candidate
+  const handleDeleteCandidate = () => {
+    if (!candidate) return;
+    if (
+      window.confirm(
+        `Are you sure you want to permanently remove candidate "${candidate.full_name}" (${candidate.candidate_code})? This will delete their profile and clear their scheduled appointments.`
+      )
+    ) {
+      db.deleteCandidate(candidate.id, role);
+      navigate('/candidates');
+    }
   };
 
   // Smart suggestion check: completed classes + licence received
@@ -381,6 +395,15 @@ export const CandidateDetail: React.FC = () => {
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>Book Class</span>
+            </button>
+
+            <button
+              onClick={handleDeleteCandidate}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition cursor-pointer"
+              title="Remove Candidate"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Remove</span>
             </button>
           </div>
         </div>

@@ -13,6 +13,7 @@ import {
   Save,
   ShieldAlert,
   Database,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import type { Package, SchoolSettings, ActivityLogItem } from '../../types';
@@ -118,6 +119,13 @@ export const SettingsPage: React.FC = () => {
   const handleTogglePkgActive = (pkg: Package) => {
     db.updatePackage(pkg.id, { is_active: !pkg.is_active });
     setPackages(db.getPackages());
+  };
+
+  const handleDeletePackage = (pkg: Package) => {
+    if (window.confirm(`Are you sure you want to permanently delete package "${pkg.name}"?`)) {
+      db.deletePackage(pkg.id, role);
+      setPackages(db.getPackages());
+    }
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -342,6 +350,13 @@ export const SettingsPage: React.FC = () => {
                     >
                       <Edit2 className="w-3 h-3" />
                       <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeletePackage(pkg)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition cursor-pointer"
+                      title="Delete Package"
+                    >
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Repeat,
   ArrowRight,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import type { Appointment, Candidate, Instructor, Vehicle } from '../../types';
@@ -281,6 +282,14 @@ export const AppointmentsPage: React.FC = () => {
     db.cancelAppointment(selectedAppointment.id, cancelReason, role);
     setRefreshKey((k) => k + 1);
     setIsManageModalOpen(false);
+  };
+
+  const handleDeleteAppointment = (appointmentId: string) => {
+    if (window.confirm('Are you sure you want to permanently remove this appointment booking?')) {
+      db.deleteAppointment(appointmentId, role);
+      setRefreshKey((k) => k + 1);
+      setIsManageModalOpen(false);
+    }
   };
 
   // Run Bulk Reassign
@@ -1061,6 +1070,19 @@ export const AppointmentsPage: React.FC = () => {
                 </button>
               </form>
             )}
+
+            {/* Permanent Delete Slot */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <span className="text-[11px] text-slate-400">Permanently remove slot record:</span>
+              <button
+                type="button"
+                onClick={() => handleDeleteAppointment(selectedAppointment.id)}
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Booking</span>
+              </button>
+            </div>
           </div>
         )}
       </Modal>

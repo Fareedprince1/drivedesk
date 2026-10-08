@@ -14,6 +14,7 @@ import {
   CalendarDays,
   ArrowRight,
   ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import type { Instructor, InstructorLeave } from '../../types';
@@ -73,6 +74,20 @@ export const InstructorsPage: React.FC = () => {
     if (!selectedInstructor) return [];
     return db.getInstructorLeaves(selectedInstructor.id);
   }, [selectedInstructor]);
+
+  const handleDeleteInstructor = (instructorId: string, name: string) => {
+    if (
+      window.confirm(
+        `Are you sure you want to remove instructor "${name}"? This will unassign any linked vehicles.`
+      )
+    ) {
+      db.deleteInstructor(instructorId, role);
+      setDataVersion((v) => v + 1);
+      if (selectedInstructorId === instructorId) {
+        setSelectedInstructorId('');
+      }
+    }
+  };
 
   const handleOpenAddModal = () => {
     setFormName('');
@@ -241,7 +256,21 @@ export const InstructorsPage: React.FC = () => {
 
                 <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
                   <span>🚗 {veh?.registration_number || 'No Vehicle'}</span>
-                  <span>{formatTime12(inst.working_start_time)} - {formatTime12(inst.working_end_time)}</span>
+                  <div className="flex items-center gap-2">
+                    <span>{formatTime12(inst.working_start_time)} - {formatTime12(inst.working_end_time)}</span>
+                    {isAdmin && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteInstructor(inst.id, inst.name);
+                        }}
+                        title="Remove Instructor"
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -287,12 +316,22 @@ export const InstructorsPage: React.FC = () => {
                     + Record Leave
                   </button>
                   {isAdmin && (
-                    <button
-                      onClick={() => handleOpenEditModal(selectedInstructor)}
-                      className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                    >
-                      Edit Profile
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleOpenEditModal(selectedInstructor)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Edit Profile
+                      </button>
+                      <button
+                        onClick={() => handleDeleteInstructor(selectedInstructor.id, selectedInstructor.name)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition cursor-pointer flex items-center gap-1"
+                        title="Remove Instructor"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

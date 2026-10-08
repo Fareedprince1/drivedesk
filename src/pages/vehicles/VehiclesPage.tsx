@@ -13,6 +13,7 @@ import {
   FileCheck2,
   Edit2,
   ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import type { Vehicle, VehicleStatus } from '../../types';
@@ -68,8 +69,24 @@ export const VehiclesPage: React.FC = () => {
   const [formNextService, setFormNextService] = useState('');
   const [formStatus, setFormStatus] = useState<VehicleStatus>('available');
 
-  const vehicles = db.getVehicles();
-  const instructors = db.getInstructors();
+  const [dataVersion, setDataVersion] = useState(0);
+
+  const vehicles = useMemo(() => db.getVehicles(), [dataVersion]);
+  const instructors = useMemo(() => db.getInstructors(), [dataVersion]);
+
+  const handleDeleteVehicle = (vehicleId: string, reg: string) => {
+    if (
+      window.confirm(
+        `Are you sure you want to remove vehicle "${reg}"? This will unassign it from any instructor.`
+      )
+    ) {
+      db.deleteVehicle(vehicleId, role);
+      setDataVersion((v) => v + 1);
+      if (selectedVehicleId === vehicleId) {
+        setSelectedVehicleId('');
+      }
+    }
+  };
 
   const selectedVehicle = useMemo(() => {
     return vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0] || null;
@@ -272,6 +289,21 @@ export const VehiclesPage: React.FC = () => {
                       {pucIndicator.label}
                     </span>
                   </div>
+
+                  {isAdmin && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteVehicle(v.id, v.registration_number);
+                        }}
+                        title="Remove Vehicle"
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -316,12 +348,22 @@ export const VehiclesPage: React.FC = () => {
                   </select>
 
                   {isAdmin && (
-                    <button
-                      onClick={() => handleOpenEdit(selectedVehicle)}
-                      className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                    >
-                      Edit Vehicle
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleOpenEdit(selectedVehicle)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Edit Vehicle
+                      </button>
+                      <button
+                        onClick={() => handleDeleteVehicle(selectedVehicle.id, selectedVehicle.registration_number)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition cursor-pointer flex items-center gap-1"
+                        title="Remove Vehicle"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

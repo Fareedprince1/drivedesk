@@ -1220,6 +1220,17 @@ class DriveDeskStorage {
     return updated;
   }
 
+  deletePackage(id: string, role: UserRole = 'admin'): void {
+    const packages = this.getPackages();
+    const idx = packages.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error('Package not found');
+    const old = packages[idx];
+    packages.splice(idx, 1);
+    this.set(STORAGE_KEYS.PACKAGES, packages);
+    this.logActivity('DELETE', 'packages', id, `Deleted package: ${old.name}`, old, undefined, role);
+    this.syncToCloud('packages', 'delete', undefined, id);
+  }
+
   // --- SEQUENTIAL GENERATORS ---
   getNextCandidateCode(): string {
     const candidates = this.getCandidates(true); // include soft-deleted
@@ -1545,6 +1556,22 @@ class DriveDeskStorage {
     this.syncToCloud('candidates', 'update', { deleted_at: candidates[idx].deleted_at }, id);
   }
 
+  deleteCandidate(id: string, role: UserRole = 'admin'): void {
+    const candidates = this.getCandidates(true);
+    const idx = candidates.findIndex((c) => c.id === id);
+    if (idx === -1) throw new Error('Candidate not found');
+    const old = candidates[idx];
+    candidates[idx].deleted_at = new Date().toISOString();
+    this.set(STORAGE_KEYS.CANDIDATES, candidates);
+    this.logActivity('DELETE', 'candidates', id, `Deleted candidate ${old.full_name} (${old.candidate_code})`, old, undefined, role);
+    this.syncToCloud('candidates', 'delete', undefined, id);
+    // Also remove any booked appointments for this candidate
+    const apps = this.getAppointments({ candidateId: id, includeDeleted: true });
+    apps.forEach((a) => {
+      this.deleteAppointment(a.id, role);
+    });
+  }
+
   addEnrollment(
     candidateId: string,
     packageSelection: {
@@ -1716,6 +1743,24 @@ class DriveDeskStorage {
     return updated;
   }
 
+  deleteInstructor(id: string, role: UserRole = 'admin'): void {
+    const list = this.getInstructors();
+    const idx = list.findIndex((i) => i.id === id);
+    if (idx === -1) throw new Error('Instructor not found');
+    const old = list[idx];
+    list.splice(idx, 1);
+    this.set(STORAGE_KEYS.INSTRUCTORS, list);
+    // Unassign this instructor from any vehicle
+    const vehicles = this.getVehicles();
+    vehicles.forEach((v) => {
+      if (v.assigned_instructor_id === id) {
+        this.updateVehicle(v.id, { assigned_instructor_id: null }, role);
+      }
+    });
+    this.logActivity('DELETE', 'instructors', id, `Deleted instructor ${old.name}`, old, undefined, role);
+    this.syncToCloud('instructors', 'delete', undefined, id);
+  }
+
   getInstructorLeaves(instructorId?: string): InstructorLeave[] {
     const list = this.get<InstructorLeave[]>(STORAGE_KEYS.INSTRUCTOR_LEAVES, []);
     return instructorId ? list.filter((l) => l.instructor_id === instructorId) : list;
@@ -1773,6 +1818,24 @@ class DriveDeskStorage {
     this.logActivity('UPDATE', 'vehicles', id, `Updated vehicle ${updated.registration_number}`, old, updated, role);
     this.syncToCloud('vehicles', 'update', updated, id);
     return updated;
+  }
+
+  deleteVehicle(id: string, role: UserRole = 'admin'): void {
+    const list = this.getVehicles();
+    const idx = list.findIndex((v) => v.id === id);
+    if (idx === -1) throw new Error('Vehicle not found');
+    const old = list[idx];
+    list.splice(idx, 1);
+    this.set(STORAGE_KEYS.VEHICLES, list);
+    // Unassign vehicle from any instructor
+    const instructors = this.getInstructors();
+    instructors.forEach((i) => {
+      if (i.assigned_vehicle_id === id) {
+        this.updateInstructor(i.id, { assigned_vehicle_id: null }, role);
+      }
+    });
+    this.logActivity('DELETE', 'vehicles', id, `Deleted vehicle ${old.registration_number}`, old, undefined, role);
+    this.syncToCloud('vehicles', 'delete', undefined, id);
   }
 
   // --- HOLIDAYS ---
@@ -1950,6 +2013,17 @@ class DriveDeskStorage {
     this.logActivity('UPDATE', 'appointments', id, `Updated appointment status to ${status}`, old, updated, role);
     this.syncToCloud('appointments', 'update', updated, id);
     return updated;
+  }
+
+  deleteAppointment(id: string, role: UserRole = 'admin'): void {
+    const apps = this.getAppointments({ includeDeleted: true });
+    const idx = apps.findIndex((a) => a.id === id);
+    if (idx === -1) return;
+    const old = apps[idx];
+    apps.splice(idx, 1);
+    this.set(STORAGE_KEYS.APPOINTMENTS, apps);
+    this.logActivity('DELETE', 'appointments', id, `Deleted appointment on ${old.appointment_date} at ${old.start_time}`, old, undefined, role);
+    this.syncToCloud('appointments', 'delete', undefined, id);
   }
 
   rescheduleAppointment(

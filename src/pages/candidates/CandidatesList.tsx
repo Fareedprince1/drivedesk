@@ -13,6 +13,7 @@ import {
   Plus,
   CheckCircle2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import type { CandidateWithStats } from '../../types';
@@ -22,7 +23,7 @@ import { AddCandidateModal } from './AddCandidateModal';
 import { useAuth } from '../../context/AuthContext';
 
 export const CandidatesList: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { role, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -41,6 +42,17 @@ export const CandidatesList: React.FC = () => {
   // Add Candidate Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(() => searchParams.get('action') === 'add');
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleDeleteCandidate = (cand: CandidateWithStats) => {
+    if (
+      window.confirm(
+        `Are you sure you want to remove candidate "${cand.full_name}" (${cand.candidate_code})? This will delete the candidate and clear their booked classes.`
+      )
+    ) {
+      db.deleteCandidate(cand.id, role);
+      setRefreshKey((k) => k + 1);
+    }
+  };
 
   // Re-fetch when local storage changes or cloud sync completes
   React.useEffect(() => {
@@ -364,6 +376,13 @@ export const CandidatesList: React.FC = () => {
                             <MessageSquare className="w-3.5 h-3.5" />
                           </a>
                           <button
+                            onClick={() => handleDeleteCandidate(cand)}
+                            title="Remove Candidate"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => navigate(`/candidates/${cand.id}`)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white"
                           >
@@ -462,6 +481,13 @@ export const CandidatesList: React.FC = () => {
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                       </a>
+                      <button
+                        onClick={() => handleDeleteCandidate(cand)}
+                        title="Remove Candidate"
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => navigate(`/candidates/${cand.id}`)}
                         className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 transition"
