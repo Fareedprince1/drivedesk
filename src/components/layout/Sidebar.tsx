@@ -24,14 +24,14 @@ export const Sidebar: React.FC = () => {
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Appointments', icon: CalendarDays },
-    { to: '/payments', label: 'Payments', icon: CreditCard },
-    { to: '/pending-balance', label: 'Pending Balance', icon: AlertCircle },
     { to: '/instructors', label: 'Instructors', icon: GraduationCap },
     { to: '/vehicles', label: 'Vehicles', icon: Car },
     { to: '/driving-tests', label: 'Driving Tests', icon: FileCheck2 },
-    // Admin only
+    // Admin only (Strict Financial Privacy & Control)
     ...(isAdmin
       ? [
+          { to: '/payments', label: 'Payments', icon: CreditCard, adminOnly: true },
+          { to: '/pending-balance', label: 'Pending Balance', icon: AlertCircle, adminOnly: true },
           { to: '/expenses', label: 'Expenses', icon: TrendingDown, adminOnly: true },
           { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
           { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },

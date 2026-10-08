@@ -6,8 +6,10 @@ import { MobileNav } from './MobileNav';
 import { MobileDrawer } from './MobileDrawer';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
 import { Plus, UserPlus, CalendarPlus, CreditCard } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export const AppLayout: React.FC = () => {
+  const { isAdmin } = useAuth();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
@@ -71,16 +73,18 @@ export const AppLayout: React.FC = () => {
               <CalendarPlus className="w-4 h-4 text-sky-600" />
               <span>Book Appointment</span>
             </button>
-            <button
-              onClick={() => {
-                setFabOpen(false);
-                navigate('/payments?action=record');
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-full shadow-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-teal-50 hover:text-teal-700 transition"
-            >
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <span>Record Payment</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setFabOpen(false);
+                  navigate('/payments?action=record');
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-full shadow-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-teal-50 hover:text-teal-700 transition"
+              >
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>Record Payment</span>
+              </button>
+            )}
           </div>
         )}
 

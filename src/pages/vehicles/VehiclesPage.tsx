@@ -434,66 +434,68 @@ export const VehiclesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Linked Expenses & Maintenance Costs */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                    Vehicle Operating Expenses (Fuel & Service)
-                  </h3>
-                  <p className="text-xs text-slate-400">Direct costs linked to {selectedVehicle.registration_number}</p>
+            {/* Linked Expenses & Maintenance Costs (Admin only) */}
+            {isAdmin && (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                      Vehicle Operating Expenses (Fuel & Service)
+                    </h3>
+                    <p className="text-xs text-slate-400">Direct costs linked to {selectedVehicle.registration_number}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-slate-400">Total Spent: </span>
+                    <strong className="text-sm font-black font-mono text-rose-600">
+                      {formatINR(vehicleExpenses.totalCost)}
+                    </strong>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-400">Total Spent: </span>
-                  <strong className="text-sm font-black font-mono text-rose-600">
-                    {formatINR(vehicleExpenses.totalCost)}
-                  </strong>
-                </div>
-              </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-4">Date</th>
-                      <th className="py-2.5 px-4">Category</th>
-                      <th className="py-2.5 px-4">Amount</th>
-                      <th className="py-2.5 px-4">Payment Mode</th>
-                      <th className="py-2.5 px-4">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {vehicleExpenses.expenses.length === 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-semibold">
                       <tr>
-                        <td colSpan={5} className="text-center py-8 text-slate-400">
-                          No direct expenses logged for this vehicle yet.
-                        </td>
+                        <th className="py-2.5 px-4">Date</th>
+                        <th className="py-2.5 px-4">Category</th>
+                        <th className="py-2.5 px-4">Amount</th>
+                        <th className="py-2.5 px-4">Payment Mode</th>
+                        <th className="py-2.5 px-4">Description</th>
                       </tr>
-                    ) : (
-                      vehicleExpenses.expenses.map((e) => (
-                        <tr key={e.id} className="hover:bg-slate-50/50">
-                          <td className="py-2.5 px-4 font-mono whitespace-nowrap">
-                            {formatDate(e.expense_date)}
-                          </td>
-                          <td className="py-2.5 px-4 uppercase font-bold text-[11px] text-teal-700 dark:text-teal-400">
-                            {e.category.replace('_', ' ')}
-                          </td>
-                          <td className="py-2.5 px-4 font-mono font-bold text-rose-600 whitespace-nowrap">
-                            {formatINR(e.amount)}
-                          </td>
-                          <td className="py-2.5 px-4 uppercase font-semibold text-slate-500">
-                            {e.payment_mode}
-                          </td>
-                          <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">
-                            {e.description}
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {vehicleExpenses.expenses.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-8 text-slate-400">
+                            No direct expenses logged for this vehicle yet.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        vehicleExpenses.expenses.map((e) => (
+                          <tr key={e.id} className="hover:bg-slate-50/50">
+                            <td className="py-2.5 px-4 font-mono whitespace-nowrap">
+                              {formatDate(e.expense_date)}
+                            </td>
+                            <td className="py-2.5 px-4 uppercase font-bold text-[11px] text-teal-700 dark:text-teal-400">
+                              {e.category.replace('_', ' ')}
+                            </td>
+                            <td className="py-2.5 px-4 font-mono font-bold text-rose-600 whitespace-nowrap">
+                              {formatINR(e.amount)}
+                            </td>
+                            <td className="py-2.5 px-4 uppercase font-semibold text-slate-500">
+                              {e.payment_mode}
+                            </td>
+                            <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">
+                              {e.description}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
             </div>
           )}
         </div>

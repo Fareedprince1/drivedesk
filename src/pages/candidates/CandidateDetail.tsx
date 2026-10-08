@@ -362,7 +362,7 @@ export const CandidateDetail: React.FC = () => {
               <span>WhatsApp</span>
             </a>
 
-            {selectedEnrollment && (
+            {isAdmin && selectedEnrollment && (
               <button
                 onClick={() => {
                   setPayAmount(stats?.balance || 0);
@@ -386,7 +386,7 @@ export const CandidateDetail: React.FC = () => {
         </div>
 
         {/* Stats Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className={`grid grid-cols-2 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-2'} gap-4 pt-4 border-t border-slate-100 dark:border-slate-800`}>
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
               Package Enrolled
@@ -411,35 +411,39 @@ export const CandidateDetail: React.FC = () => {
             </span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Fees & Paid
-            </span>
-            <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-              {formatINR(stats?.amount_paid || 0)} <span className="text-slate-400 text-xs font-normal">of {formatINR(stats?.net_fee || 0)}</span>
+          {isAdmin && (
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                Fees & Paid
+              </span>
+              <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
+                {formatINR(stats?.amount_paid || 0)} <span className="text-slate-400 text-xs font-normal">of {formatINR(stats?.net_fee || 0)}</span>
+              </div>
+              <span className="text-[11px] text-slate-500">
+                Discount: {formatINR(selectedEnrollment?.discount_amount || 0)}
+              </span>
             </div>
-            <span className="text-[11px] text-slate-500">
-              Discount: {formatINR(selectedEnrollment?.discount_amount || 0)}
-            </span>
-          </div>
+          )}
 
-          <div className={`p-3.5 rounded-2xl ${
-            (stats?.balance || 0) > 0
-              ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40'
-              : 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40'
-          }`}>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Balance Pending
-            </span>
-            <div className={`text-base font-black mt-1 ${
-              (stats?.balance || 0) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'
+          {isAdmin && (
+            <div className={`p-3.5 rounded-2xl ${
+              (stats?.balance || 0) > 0
+                ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40'
+                : 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40'
             }`}>
-              {formatINR(stats?.balance || 0)}
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                Balance Pending
+              </span>
+              <div className={`text-base font-black mt-1 ${
+                (stats?.balance || 0) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'
+              }`}>
+                {formatINR(stats?.balance || 0)}
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">
+                {(stats?.balance || 0) > 0 ? 'Payment due' : 'Fully Cleared'}
+              </span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-500">
-              {(stats?.balance || 0) > 0 ? 'Payment due' : 'Fully Cleared'}
-            </span>
-          </div>
+          )}
         </div>
       </div>
 
@@ -469,17 +473,19 @@ export const CandidateDetail: React.FC = () => {
           <span>Classes ({candidateAppointments.length})</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('payments')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-            activeTab === 'payments'
-              ? 'bg-teal-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          <span>Payments ({candidatePayments.length})</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+              activeTab === 'payments'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Payments ({candidatePayments.length})</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('rto')}
@@ -572,18 +578,22 @@ export const CandidateDetail: React.FC = () => {
                   <span className="text-slate-500">Total Classes Booked</span>
                   <span className="font-mono">{selectedEnrollment.total_classes}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">Base Fee</span>
-                  <span className="font-mono">{formatINR(selectedEnrollment.total_fee)}</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500">Discount Concession</span>
-                  <span className="font-mono text-emerald-600">-{formatINR(selectedEnrollment.discount_amount)}</span>
-                </div>
-                <div className="flex justify-between py-1.5 font-bold">
-                  <span className="text-slate-900 dark:text-white">Net Course Fee</span>
-                  <span className="font-mono text-teal-600">{formatINR(stats?.net_fee || 0)}</span>
-                </div>
+                {isAdmin && (
+                  <>
+                    <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500">Base Fee</span>
+                      <span className="font-mono">{formatINR(selectedEnrollment.total_fee)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500">Discount Concession</span>
+                      <span className="font-mono text-emerald-600">-{formatINR(selectedEnrollment.discount_amount)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 font-bold">
+                      <span className="text-slate-900 dark:text-white">Net Course Fee</span>
+                      <span className="font-mono text-teal-600">{formatINR(stats?.net_fee || 0)}</span>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="text-center py-6 text-slate-400 space-y-2">
@@ -667,8 +677,8 @@ export const CandidateDetail: React.FC = () => {
         </div>
       )}
 
-      {/* TAB CONTENT: PAYMENTS */}
-      {activeTab === 'payments' && (
+      {/* TAB CONTENT: PAYMENTS (Admin Only) */}
+      {isAdmin && activeTab === 'payments' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div className="text-xs">

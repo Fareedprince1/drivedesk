@@ -114,7 +114,7 @@ const STAGES: { key: RTOStage; label: string; desc: string; color: string; bg: s
 ];
 
 export const DrivingTestsPage: React.FC = () => {
-  const { role: currentRole } = useAuth();
+  const { role: currentRole, isAdmin } = useAuth();
   const [dataVersion, setDataVersion] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('all');
@@ -592,7 +592,7 @@ export const DrivingTestsPage: React.FC = () => {
                       </div>
                     )}
 
-                    {item.hasPendingBalance && (
+                    {isAdmin && item.hasPendingBalance && (
                       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-800 dark:text-rose-300 text-xs font-medium">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
                         <span>
@@ -601,10 +601,10 @@ export const DrivingTestsPage: React.FC = () => {
                       </div>
                     )}
 
-                    {!item.hasIncompleteTraining && !item.hasPendingBalance && (
+                    {!item.hasIncompleteTraining && (!isAdmin || !item.hasPendingBalance) && (
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                        <span>Eligible: Training finished & fully paid</span>
+                        <span>Eligible: Training completed{isAdmin && !item.hasPendingBalance ? ' & fully paid' : ''}</span>
                       </div>
                     )}
                   </div>
@@ -776,19 +776,21 @@ export const DrivingTestsPage: React.FC = () => {
                             />
                           </div>
 
-                          {/* Fee Status */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Balance:</span>
-                            {item.balance > 0 ? (
-                              <span className="font-semibold text-rose-600 dark:text-rose-400">
-                                {formatINR(item.balance)} Due
-                              </span>
-                            ) : (
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                Paid
-                              </span>
-                            )}
-                          </div>
+                          {/* Fee Status (Admin only) */}
+                          {isAdmin && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500">Balance:</span>
+                              {item.balance > 0 ? (
+                                <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                  {formatINR(item.balance)} Due
+                                </span>
+                              ) : (
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Paid
+                                </span>
+                              )}
+                            </div>
+                          )}
 
                           {/* Stage-specific detail snippets */}
                           {item.rto.stage === 'll_pending' && (
@@ -936,7 +938,7 @@ export const DrivingTestsPage: React.FC = () => {
                   <th className="py-3 px-4">Candidate</th>
                   <th className="py-3 px-3">Stage</th>
                   <th className="py-3 px-3">Training Progress</th>
-                  <th className="py-3 px-3">Fee Status</th>
+                  {isAdmin && <th className="py-3 px-3">Fee Status</th>}
                   <th className="py-3 px-3">LL Number</th>
                   <th className="py-3 px-3">Test Date & Time</th>
                   <th className="py-3 px-3">Result / DL #</th>
@@ -946,7 +948,7 @@ export const DrivingTestsPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={isAdmin ? 8 : 7} className="py-8 text-center text-slate-400">
                       No candidate RTO records found matching your filters.
                     </td>
                   </tr>
@@ -995,17 +997,19 @@ export const DrivingTestsPage: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className="py-3 px-3">
-                          {item.balance > 0 ? (
-                            <span className="font-semibold text-rose-600 dark:text-rose-400">
-                              {formatINR(item.balance)} Due
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                              Paid
-                            </span>
-                          )}
-                        </td>
+                        {isAdmin && (
+                          <td className="py-3 px-3">
+                            {item.balance > 0 ? (
+                              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                {formatINR(item.balance)} Due
+                              </span>
+                            ) : (
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                Paid
+                              </span>
+                            )}
+                          </td>
+                        )}
 
                         <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-400">
                           {item.rto.ll_number || '-'}
@@ -1101,7 +1105,7 @@ export const DrivingTestsPage: React.FC = () => {
             </div>
 
             {/* Incomplete warning in modal */}
-            {(activeItem.hasIncompleteTraining || activeItem.hasPendingBalance) && (
+            {(activeItem.hasIncompleteTraining || (isAdmin && activeItem.hasPendingBalance)) && (
               <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -1110,7 +1114,7 @@ export const DrivingTestsPage: React.FC = () => {
                 {activeItem.hasIncompleteTraining && (
                   <div>• {activeItem.remainingClasses} training classes remain to be completed.</div>
                 )}
-                {activeItem.hasPendingBalance && (
+                {isAdmin && activeItem.hasPendingBalance && (
                   <div>• Pending balance of {formatINR(activeItem.balance)} is outstanding.</div>
                 )}
               </div>

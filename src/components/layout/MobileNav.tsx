@@ -5,20 +5,25 @@ import {
   Users,
   CalendarDays,
   CreditCard,
+  FileCheck2,
   Menu,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface MobileNavProps {
   onOpenDrawer: () => void;
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({ onOpenDrawer }) => {
+  const { isAdmin } = useAuth();
 
   const primaryItems = [
     { to: '/', label: 'Home', icon: LayoutDashboard },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Classes', icon: CalendarDays },
-    { to: '/payments', label: 'Payments', icon: CreditCard },
+    ...(isAdmin
+      ? [{ to: '/payments', label: 'Payments', icon: CreditCard }]
+      : [{ to: '/driving-tests', label: 'Tests', icon: FileCheck2 }]),
   ];
 
   return (

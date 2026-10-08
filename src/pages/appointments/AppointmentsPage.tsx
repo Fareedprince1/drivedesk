@@ -26,7 +26,6 @@ import {
   formatDate,
   formatTime12,
   getTodayIST,
-  formatINR,
   getWhatsAppUrl,
   getTelUrl,
 } from '../../lib/formatters';

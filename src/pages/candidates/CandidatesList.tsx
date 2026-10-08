@@ -19,8 +19,10 @@ import type { CandidateWithStats } from '../../types';
 import { formatINR, formatPhone, formatDate, getWhatsAppUrl, getTelUrl } from '../../lib/formatters';
 import { Badge, getStatusBadgeVariant } from '../../components/common/Badge';
 import { AddCandidateModal } from './AddCandidateModal';
+import { useAuth } from '../../context/AuthContext';
 
 export const CandidatesList: React.FC = () => {
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -196,18 +198,22 @@ export const CandidatesList: React.FC = () => {
 
         {/* Toggle & Filter Tags */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600 dark:text-slate-400 select-none">
-            <input
-              type="checkbox"
-              checked={onlyBalancePending}
-              onChange={(e) => {
-                setOnlyBalancePending(e.target.checked);
-                setCurrentPage(1);
-              }}
-              className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
-            />
-            <span>Show only candidates with pending balance</span>
-          </label>
+          {isAdmin ? (
+            <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600 dark:text-slate-400 select-none">
+              <input
+                type="checkbox"
+                checked={onlyBalancePending}
+                onChange={(e) => {
+                  setOnlyBalancePending(e.target.checked);
+                  setCurrentPage(1);
+                }}
+                className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+              />
+              <span>Show only candidates with pending balance</span>
+            </label>
+          ) : (
+            <div />
+          )}
 
           <span className="text-slate-400 text-[11px]">
             Showing {filteredCandidates.length} candidate(s)
@@ -243,15 +249,17 @@ export const CandidatesList: React.FC = () => {
                 <th className="py-3 px-4">Mobile</th>
                 <th className="py-3 px-4">Package Enrolled</th>
                 <th className="py-3 px-4">Classes (Done/Left)</th>
-                <th
-                  onClick={() => toggleSort('balance')}
-                  className="py-3 px-4 cursor-pointer hover:text-teal-600"
-                >
-                  <div className="flex items-center gap-1">
-                    <span>Balance Pending</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </div>
-                </th>
+                {isAdmin && (
+                  <th
+                    onClick={() => toggleSort('balance')}
+                    className="py-3 px-4 cursor-pointer hover:text-teal-600"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Balance Pending</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                )}
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -259,7 +267,7 @@ export const CandidatesList: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {paginatedCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-14 text-slate-400">
+                  <td colSpan={isAdmin ? 8 : 7} className="text-center py-14 text-slate-400">
                     <div className="max-w-xs mx-auto space-y-3">
                       <Users className="w-9 h-9 text-slate-300 dark:text-slate-600 mx-auto" />
                       <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">
@@ -316,17 +324,19 @@ export const CandidatesList: React.FC = () => {
                           '-'
                         )}
                       </td>
-                      <td className="py-3 px-4 font-mono font-extrabold whitespace-nowrap">
-                        {balance > 0 ? (
-                          <span className="text-rose-600 dark:text-rose-400">
-                            {formatINR(balance)}
-                          </span>
-                        ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400">
-                            ₹0 (Cleared)
-                          </span>
-                        )}
-                      </td>
+                      {isAdmin && (
+                        <td className="py-3 px-4 font-mono font-extrabold whitespace-nowrap">
+                          {balance > 0 ? (
+                            <span className="text-rose-600 dark:text-rose-400">
+                              {formatINR(balance)}
+                            </span>
+                          ) : (
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              ₹0 (Cleared)
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-3 px-4">
                         <Badge variant={getStatusBadgeVariant(cand.status)} size="sm">
                           {cand.status}
@@ -418,12 +428,14 @@ export const CandidatesList: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="text-right space-y-0.5">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Balance</span>
-                      <span className={`font-mono font-extrabold ${balance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        {balance > 0 ? formatINR(balance) : '₹0 Cleared'}
-                      </span>
-                    </div>
+                    {isAdmin && (
+                      <div className="text-right space-y-0.5">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Balance</span>
+                        <span className={`font-mono font-extrabold ${balance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {balance > 0 ? formatINR(balance) : '₹0 Cleared'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between pt-1" onClick={(e) => e.stopPropagation()}>

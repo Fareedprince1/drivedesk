@@ -121,7 +121,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <h2 className="text-sm font-extrabold text-slate-900 dark:text-white">
-              {todayAppointments.length} appointments today · {pendingPaymentsList.length} pending payments · {testsTomorrow.length > 0 ? `${testsTomorrow.length} driving tests tomorrow` : `${upcomingTests.length} upcoming driving tests`}
+              {todayAppointments.length} appointments today{isAdmin ? ` · ${pendingPaymentsList.length} pending payments` : ''} · {testsTomorrow.length > 0 ? `${testsTomorrow.length} driving tests tomorrow` : `${upcomingTests.length} upcoming driving tests`}
             </h2>
             <p className="text-xs text-teal-800 dark:text-teal-300 font-medium">
               {settings.school_name} • {formatDate(today)}
@@ -139,8 +139,8 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Row of Stat Cards (12 requested stats) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Top Row of Stat Cards */}
+      <div className={`grid grid-cols-2 sm:grid-cols-3 ${isAdmin ? 'lg:grid-cols-6' : 'lg:grid-cols-4'} gap-3`}>
         {/* Total Candidates */}
         <div
           onClick={() => navigate('/candidates')}
@@ -192,25 +192,27 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Pending Payments */}
-        <div
-          onClick={() => navigate('/pending-balance')}
-          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-amber-500 transition cursor-pointer group"
-        >
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Pending Balance</span>
-            <AlertCircle className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
+        {/* Pending Payments (Admin Only - Strict Privacy) */}
+        {isAdmin && (
+          <div
+            onClick={() => navigate('/pending-balance')}
+            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-amber-500 transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between text-slate-400 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Pending Balance</span>
+              <AlertCircle className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
+            </div>
+            <div className="text-xl font-black text-amber-600 font-mono">
+              {formatINR(totalPendingBalance)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-0.5">
+              {pendingPaymentsList.length} candidates pending
+            </div>
           </div>
-          <div className="text-xl font-black text-amber-600 font-mono">
-            {formatINR(totalPendingBalance)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">
-            {pendingPaymentsList.length} candidates pending
-          </div>
-        </div>
+        )}
 
-        {/* Today's Collection (Admin Only) */}
-        {isAdmin ? (
+        {/* Today's Collection (Admin Only - Strict Privacy) */}
+        {isAdmin && (
           <div
             onClick={() => navigate('/payments')}
             className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-teal-500 transition cursor-pointer group"
@@ -224,16 +226,6 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="text-[10px] text-slate-400 mt-0.5">
               Month: {formatINR(thisMonthCollection)}
-            </div>
-          </div>
-        ) : (
-          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 opacity-60">
-            <div className="flex items-center justify-between text-slate-400 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Collection</span>
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div className="text-xs font-bold text-slate-400 mt-2">
-              Admin Only
             </div>
           </div>
         )}
@@ -448,8 +440,8 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* Pending Balances alert */}
-              {pendingPaymentsList.length > 0 && (
+              {/* Pending Balances alert (Admin Only) */}
+              {isAdmin && pendingPaymentsList.length > 0 && (
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 flex items-start gap-2.5 text-xs">
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>

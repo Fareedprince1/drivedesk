@@ -31,13 +31,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Appointments', icon: CalendarDays },
-    { to: '/payments', label: 'Payments', icon: CreditCard },
-    { to: '/pending-balance', label: 'Pending Balance', icon: AlertCircle },
     { to: '/instructors', label: 'Instructors', icon: GraduationCap },
     { to: '/vehicles', label: 'Vehicles', icon: Car },
     { to: '/driving-tests', label: 'Driving Tests / RTO', icon: FileCheck2 },
     ...(isAdmin
       ? [
+          { to: '/payments', label: 'Payments (Admin)', icon: CreditCard },
+          { to: '/pending-balance', label: 'Pending Balance (Admin)', icon: AlertCircle },
           { to: '/expenses', label: 'Expenses (Admin)', icon: TrendingDown },
           { to: '/reports', label: 'Reports & Exports (Admin)', icon: BarChart3 },
           { to: '/settings', label: 'Settings (Admin)', icon: Settings },

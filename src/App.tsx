@@ -122,13 +122,27 @@ export const App: React.FC = () => {
             <Route path="candidates" element={<CandidatesList />} />
             <Route path="candidates/:id" element={<CandidateDetail />} />
             <Route path="appointments" element={<AppointmentsPage />} />
-            <Route path="payments" element={<PaymentsPage />} />
-            <Route path="pending-balance" element={<PendingBalancePage />} />
             <Route path="instructors" element={<InstructorsPage />} />
             <Route path="vehicles" element={<VehiclesPage />} />
             <Route path="driving-tests" element={<DrivingTestsPage />} />
 
-            {/* Admin Only Routes */}
+            {/* Admin Only Routes (Strict Financial Privacy) */}
+            <Route
+              path="payments"
+              element={
+                <AdminRoute>
+                  <PaymentsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="pending-balance"
+              element={
+                <AdminRoute>
+                  <PendingBalancePage />
+                </AdminRoute>
+              }
+            />
             <Route
               path="expenses"
               element={

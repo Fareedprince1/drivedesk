@@ -15,7 +15,7 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { role } = useAuth();
+  const { role, isAdmin } = useAuth();
   const packages = db.getPackages(true); // active packages
 
   const today = getTodayIST();
@@ -37,7 +37,7 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
   const [totalFee, setTotalFee] = useState(packages[0]?.fee || 8000);
   const [discountAmount, setDiscountAmount] = useState(0);
 
-  // Initial Payment
+  // Initial Payment (Admin only)
   const [hasInitialPayment, setHasInitialPayment] = useState(true);
   const [payAmount, setPayAmount] = useState(totalFee);
   const [payMode, setPayMode] = useState<'cash' | 'upi' | 'card' | 'bank_transfer' | 'online'>('upi');
@@ -70,7 +70,7 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
       return;
     }
 
-    if (hasInitialPayment && payAmount > netFee) {
+    if (isAdmin && hasInitialPayment && payAmount > netFee) {
       setError(`Initial payment (₹${payAmount}) cannot exceed net course fee (₹${netFee})`);
       return;
     }
@@ -98,7 +98,7 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
           discount_amount: Number(discountAmount),
           start_date: joiningDate,
         },
-        hasInitialPayment && payAmount > 0
+        isAdmin && hasInitialPayment && payAmount > 0
           ? {
               amount: Number(payAmount),
               mode: payMode,
@@ -272,7 +272,7 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
         {/* Section 3: Package & Enrollment */}
         <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/60">
           <h4 className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300 mb-3">
-            3. Training Package & Fees
+            {isAdmin ? '3. Training Package & Fees' : '3. Training Package & Classes'}
           </h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -287,13 +287,14 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
               >
                 {packages.map((pkg) => (
                   <option key={pkg.id} value={pkg.id}>
-                    {pkg.name} — {pkg.total_classes} classes ({pkg.vehicle_type.toUpperCase()}) — {formatINR(pkg.fee)}
+                    {pkg.name} — {pkg.total_classes} classes ({pkg.vehicle_type.toUpperCase()})
+                    {isAdmin ? ` — ${formatINR(pkg.fee)}` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
+            <div className={isAdmin ? '' : 'sm:col-span-2'}>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 Total Classes (Copied from package, editable)
               </label>
@@ -307,113 +308,119 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Standard Fee (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                required
-                value={totalFee}
-                onChange={(e) => setTotalFee(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
-              />
-            </div>
+            {isAdmin && (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Standard Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={totalFee}
+                    onChange={(e) => setTotalFee(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Discount Concession (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
-              />
-            </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Discount Concession (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Net Payable Fee
-              </label>
-              <div className="px-3.5 py-2 text-base font-extrabold text-teal-700 dark:text-teal-400 bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 rounded-xl">
-                {formatINR(netFee)}
-              </div>
-            </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Net Payable Fee
+                  </label>
+                  <div className="px-3.5 py-2 text-base font-extrabold text-teal-700 dark:text-teal-400 bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 rounded-xl">
+                    {formatINR(netFee)}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Section 4: Initial Payment */}
-        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              4. Record Initial Payment at Admission
-            </h4>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400">
-              <input
-                type="checkbox"
-                checked={hasInitialPayment}
-                onChange={(e) => setHasInitialPayment(e.target.checked)}
-                className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
-              />
-              <span>Collect Payment Now</span>
-            </label>
-          </div>
-
-          {hasInitialPayment && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Amount Collected (₹) *
-                </label>
+        {/* Section 4: Initial Payment (Admin only) */}
+        {isAdmin && (
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                4. Record Initial Payment at Admission
+              </h4>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400">
                 <input
-                  type="number"
-                  min={1}
-                  max={netFee}
-                  required={hasInitialPayment}
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                  type="checkbox"
+                  checked={hasInitialPayment}
+                  onChange={(e) => setHasInitialPayment(e.target.checked)}
+                  className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
                 />
-                <span className="text-[11px] text-slate-400">
-                  Balance will be: {formatINR(netFee - payAmount)}
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Payment Mode *
-                </label>
-                <select
-                  value={payMode}
-                  onChange={(e) => setPayMode(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
-                >
-                  <option value="upi">UPI (GPay / PhonePe / Paytm)</option>
-                  <option value="cash">Cash</option>
-                  <option value="card">Debit / Credit Card</option>
-                  <option value="bank_transfer">Bank Transfer (NEFT/IMPS)</option>
-                  <option value="online">Online</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Remarks / Note
-                </label>
-                <input
-                  type="text"
-                  value={payRemarks}
-                  onChange={(e) => setPayRemarks(e.target.value)}
-                  placeholder="e.g. 1st installment"
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
-              </div>
+                <span>Collect Payment Now</span>
+              </label>
             </div>
-          )}
-        </div>
+
+            {hasInitialPayment && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Amount Collected (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={netFee}
+                    required={hasInitialPayment}
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                  <span className="text-[11px] text-slate-400">
+                    Balance will be: {formatINR(netFee - payAmount)}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Payment Mode *
+                  </label>
+                  <select
+                    value={payMode}
+                    onChange={(e) => setPayMode(e.target.value as any)}
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                  >
+                    <option value="upi">UPI (GPay / PhonePe / Paytm)</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Debit / Credit Card</option>
+                    <option value="bank_transfer">Bank Transfer (NEFT/IMPS)</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Remarks / Note
+                  </label>
+                  <input
+                    type="text"
+                    value={payRemarks}
+                    onChange={(e) => setPayRemarks(e.target.value)}
+                    placeholder="e.g. 1st installment"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">

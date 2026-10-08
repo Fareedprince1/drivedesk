@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, User, GraduationCap, Car, Receipt, ArrowRight, X } from 'lucide-react';
 import { db } from '../../lib/storage';
 import { formatINR } from '../../lib/formatters';
+import { useAuth } from '../../context/AuthContext';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface GlobalSearchModalProps {
 }
 
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, onClose }) => {
+  const { isAdmin } = useAuth();
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
 
@@ -63,7 +65,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
       ).slice(0, 3)
     : [];
 
-  const matchingReceipts = q
+  const matchingReceipts = isAdmin && q
     ? allPayments.filter(
         (p) =>
           p.receipt_number.toLowerCase().includes(q) ||
@@ -94,7 +96,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by candidate name, mobile, DS0001 ID, instructor, vehicle, or receipt..."
+            placeholder={
+              isAdmin
+                ? 'Search by candidate name, mobile, DS0001 ID, instructor, vehicle, or receipt...'
+                : 'Search by candidate name, mobile, DS0001 ID, instructor, or vehicle...'
+            }
             className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm font-medium"
           />
           {query && (
@@ -216,8 +222,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
             </div>
           )}
 
-          {/* Receipts */}
-          {matchingReceipts.length > 0 && (
+          {/* Receipts (Admin only) */}
+          {isAdmin && matchingReceipts.length > 0 && (
             <div>
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 px-2 flex items-center gap-1.5">
                 <Receipt className="w-3.5 h-3.5 text-emerald-600" />
