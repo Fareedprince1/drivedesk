@@ -2384,6 +2384,39 @@ class DriveDeskStorage {
     return this.getRTORecords().find((r) => r.candidate_id === candidateId);
   }
 
+  getRTORecordsByCandidateId(candidateId: string): RTOTrainingRecord[] {
+    return this.getRTORecords().filter((r) => r.candidate_id === candidateId);
+  }
+
+  createRTORecord(
+    data: Omit<RTOTrainingRecord, 'id' | 'created_at' | 'updated_at'>,
+    role: UserRole = 'admin'
+  ): RTOTrainingRecord {
+    const list = this.getRTORecords();
+    const newRecord: RTOTrainingRecord = {
+      ...data,
+      id: generateUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    list.unshift(newRecord);
+    this.set(STORAGE_KEYS.RTO, list);
+    this.logActivity('INSERT', 'rto_tracking', newRecord.id, `Created driving test entry for candidate`, undefined, newRecord, role);
+    this.syncToCloud('rto_tracking', 'insert', newRecord);
+    return newRecord;
+  }
+
+  deleteRTORecord(id: string, role: UserRole = 'admin'): void {
+    const list = this.getRTORecords();
+    const idx = list.findIndex((r) => r.id === id);
+    if (idx === -1) return;
+    const old = list[idx];
+    list.splice(idx, 1);
+    this.set(STORAGE_KEYS.RTO, list);
+    this.logActivity('DELETE', 'rto_tracking', id, `Deleted driving test entry`, old, undefined, role);
+    this.syncToCloud('rto_tracking', 'delete', undefined, id);
+  }
+
   // --- EXPENSES ---
   getExpenses(): Expense[] {
     return this.get<Expense[]>(STORAGE_KEYS.EXPENSES, []);

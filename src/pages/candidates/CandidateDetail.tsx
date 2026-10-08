@@ -53,6 +53,7 @@ export const CandidateDetail: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [rtoRecord, setRtoRecord] = useState<RTOTrainingRecord | null>(null);
+  const [candidateRTORecords, setCandidateRTORecords] = useState<RTOTrainingRecord[]>([]);
   const [notes, setNotes] = useState<CandidateNote[]>([]);
   const [loadingCandidate, setLoadingCandidate] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -143,6 +144,7 @@ export const CandidateDetail: React.FC = () => {
     setAppointments(db.getAppointments({ candidateId: id }));
     setPayments(db.getPayments());
     setRtoRecord(db.getRTORecordByCandidateId(id) || null);
+    setCandidateRTORecords(db.getRTORecordsByCandidateId(id));
     setNotes(db.getCandidateNotes(id));
     setLoadingCandidate(false);
   };
@@ -802,38 +804,92 @@ export const CandidateDetail: React.FC = () => {
         </div>
       )}
 
-      {/* TAB CONTENT: RTO TRACKING */}
+      {/* TAB CONTENT: RTO TRACKING & DRIVING TEST ENTRIES */}
       {activeTab === 'rto' && (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-w-xl">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">
-            RTO & Licence Status
-          </h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-slate-500">Current Stage</span>
-              <Badge variant={getStatusBadgeVariant(rtoRecord?.stage || 'll_pending')}>
-                {rtoRecord?.stage?.replace('_', ' ') || 'LL Pending'}
-              </Badge>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-slate-500">Learner's Licence (LL)</span>
-              <span className="font-mono font-bold">{candidate.ll_number || 'Not registered'}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-slate-500">Practical Driving Test Date</span>
-              <span>{rtoRecord?.test_date ? formatDate(rtoRecord.test_date) : 'Not scheduled'}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-slate-500">Test Result</span>
-              <Badge variant={rtoRecord?.test_result === 'pass' ? 'green' : rtoRecord?.test_result === 'fail' ? 'red' : 'yellow'}>
-                {rtoRecord?.test_result || 'Pending'}
-              </Badge>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-slate-500">Permanent Driving Licence #</span>
-              <span className="font-mono font-bold text-teal-600">{rtoRecord?.licence_number || 'In progress'}</span>
-            </div>
+        <div className="space-y-4 max-w-2xl">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+              RTO & Driving Test Entries ({candidateRTORecords.length})
+            </h3>
+            <button
+              onClick={() => navigate('/driving-tests')}
+              className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Manage in Pipeline</span>
+            </button>
           </div>
+
+          {candidateRTORecords.length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
+              No driving test entries recorded for this student yet. Click "Manage in Pipeline" to schedule a test.
+            </div>
+          ) : (
+            candidateRTORecords.map((rec, index) => (
+              <div
+                key={rec.id}
+                className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">
+                      {rec.test_type || `Test Entry #${index + 1}`}
+                    </span>
+                    <Badge variant={getStatusBadgeVariant(rec.stage)}>
+                      {rec.stage.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <Badge
+                    variant={
+                      rec.test_result === 'pass'
+                        ? 'green'
+                        : rec.test_result === 'fail'
+                        ? 'red'
+                        : 'yellow'
+                    }
+                  >
+                    {rec.test_result ? rec.test_result.toUpperCase() : 'PENDING'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 block">Test Date & Time</span>
+                    <strong className="text-slate-700 dark:text-slate-300 font-mono">
+                      {rec.test_date ? `${formatDate(rec.test_date)} at ${formatTime12(rec.test_time || '10:00')}` : 'Not scheduled'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block">RTO Office</span>
+                    <span className="text-slate-700 dark:text-slate-300">
+                      {rec.rto_office || 'Indiranagar RTO'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block">Learner Licence (LL) #</span>
+                    <strong className="font-mono text-slate-700 dark:text-slate-300">
+                      {rec.ll_number || candidate.ll_number || 'Not registered'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block">Driving Licence (DL) #</span>
+                    <strong className="font-mono text-teal-600">
+                      {rec.licence_number || 'In progress'}
+                    </strong>
+                  </div>
+                </div>
+
+                {rec.remarks && (
+                  <p className="text-xs text-slate-500 pt-1 border-t border-slate-50 dark:border-slate-800/60">
+                    Note: {rec.remarks}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 

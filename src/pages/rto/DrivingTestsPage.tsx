@@ -28,6 +28,7 @@ import {
   CalendarCheck,
   Building,
   CheckCircle,
+  Trash2,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import { useAuth } from '../../context/AuthContext';
@@ -155,12 +156,23 @@ export const DrivingTestsPage: React.FC = () => {
     remarks: '',
   });
 
+  // State for Scheduling New Test Entry (supports 2+ test entries per candidate)
+  const [newTestModalOpen, setNewTestModalOpen] = useState(false);
+  const [newTestCandidateId, setNewTestCandidateId] = useState('');
+  const [newTestType, setNewTestType] = useState('4-Wheeler (Car) DL Test');
+  const [newTestStage, setNewTestStage] = useState<RTOStage>('test_booked');
+  const [newTestDate, setNewTestDate] = useState(getTodayIST());
+  const [newTestTime, setNewTestTime] = useState('10:00');
+  const [newTestOffice, setNewTestOffice] = useState('Indiranagar RTO (KA-03)');
+  const [newTestLLNumber, setNewTestLLNumber] = useState('');
+  const [newTestRemarks, setNewTestRemarks] = useState('');
+
   const today = getTodayIST();
+  const candidates = useMemo(() => db.getCandidates(), [dataVersion]);
 
   // Load all candidates with RTO, package, training stats & balances
   const allCandidatesWithRTO: CandidateWithRTO[] = useMemo(() => {
     const rtoRecords = db.getRTORecords();
-    const candidates = db.getCandidates(true);
     const enrollments = db.getEnrollments();
     const packages = db.getPackages(true);
     const appointments = db.getAppointments();
@@ -169,8 +181,21 @@ export const DrivingTestsPage: React.FC = () => {
     return rtoRecords
       .map((rto) => {
         const candidate = candidates.find((c) => c.id === rto.candidate_id);
-        const enrollment = enrollments.find((e) => e.id === rto.enrollment_id);
-        if (!candidate || !enrollment) return null;
+        const enrollment =
+          enrollments.find((e) => e.id === rto.enrollment_id) ||
+          enrollments.find((e) => e.candidate_id === rto.candidate_id) || {
+            id: 'generic',
+            package_id: '',
+            total_classes: 20,
+            total_fee: 0,
+            discount_amount: 0,
+            start_date: today,
+            status: 'active' as const,
+            candidate_id: rto.candidate_id,
+            created_at: today,
+            updated_at: today,
+          };
+        if (!candidate) return null;
 
         const pkg = packages.find((p) => p.id === enrollment.package_id);
 
@@ -385,6 +410,54 @@ export const DrivingTestsPage: React.FC = () => {
     setDataVersion((v) => v + 1);
   };
 
+  const handleOpenNewTestModal = (candidateId?: string) => {
+    const defaultCandId = candidateId || candidates[0]?.id || '';
+    setNewTestCandidateId(defaultCandId);
+    const cand = candidates.find((c) => c.id === defaultCandId);
+    setNewTestLLNumber(cand?.ll_number || '');
+    setNewTestDate(today);
+    setNewTestTime('10:00');
+    setNewTestType('4-Wheeler (Car) DL Test');
+    setNewTestStage('test_booked');
+    setNewTestOffice('Indiranagar RTO (KA-03)');
+    setNewTestRemarks('');
+    setNewTestModalOpen(true);
+  };
+
+  const handleSaveNewTest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTestCandidateId) return;
+
+    const candidateEnrollments = db.getEnrollments().filter((en) => en.candidate_id === newTestCandidateId);
+    const enrollmentId = candidateEnrollments[0]?.id || '';
+
+    db.createRTORecord(
+      {
+        candidate_id: newTestCandidateId,
+        enrollment_id: enrollmentId,
+        stage: newTestStage,
+        test_type: newTestType,
+        test_date: newTestDate || undefined,
+        test_time: newTestTime || undefined,
+        test_result: newTestStage === 'test_booked' ? 'pending' : undefined,
+        rto_office: newTestOffice,
+        ll_number: newTestLLNumber || undefined,
+        remarks: newTestRemarks || undefined,
+      },
+      currentRole
+    );
+
+    setDataVersion((v) => v + 1);
+    setNewTestModalOpen(false);
+  };
+
+  const handleDeleteTest = (rtoId: string, candName: string) => {
+    if (window.confirm(`Are you sure you want to remove this driving test entry for ${candName}?`)) {
+      db.deleteRTORecord(rtoId, currentRole);
+      setDataVersion((v) => v + 1);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -425,6 +498,14 @@ export const DrivingTestsPage: React.FC = () => {
               Table View
             </button>
           </div>
+
+          <button
+            onClick={() => handleOpenNewTestModal()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-600/20 transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Schedule Test Entry</span>
+          </button>
         </div>
       </div>
 
@@ -728,18 +809,25 @@ export const DrivingTestsPage: React.FC = () => {
                         key={item.rto.id}
                         className="rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 p-3 shadow-xs hover:shadow-md transition"
                       >
-                        {/* Header: Name & Code */}
+                        {/* Header: Name, Code & Test Type Badge */}
                         <div className="flex items-start justify-between gap-1">
-                          <div>
+                          <div className="space-y-0.5">
                             <Link
                               to={`/candidates/${item.candidate.id}`}
                               className="font-bold text-xs text-slate-900 dark:text-white hover:text-teal-600 block line-clamp-1"
                             >
                               {item.candidate.full_name}
                             </Link>
-                            <span className="font-mono text-[11px] text-slate-500">
-                              {item.candidate.candidate_code}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono text-[11px] text-slate-500">
+                                {item.candidate.candidate_code}
+                              </span>
+                              {item.rto.test_type && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                                  {item.rto.test_type}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Vehicle Type icon */}
@@ -848,6 +936,13 @@ export const DrivingTestsPage: React.FC = () => {
                             title="Edit LL / DL details"
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTest(item.rto.id, item.candidate.full_name)}
+                            className="p-1 text-[11px] text-slate-400 hover:text-rose-600 transition"
+                            title="Remove Test Entry"
+                          >
+                            <Trash2 className="h-3 w-3" />
                           </button>
 
                           {/* Stage Transition Quick Action */}
@@ -1057,6 +1152,13 @@ export const DrivingTestsPage: React.FC = () => {
                               className="px-2 py-1 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                             >
                               Schedule
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTest(item.rto.id, item.candidate.full_name)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                              title="Remove Test Entry"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleOpenResult(item)}
@@ -1423,6 +1525,200 @@ export const DrivingTestsPage: React.FC = () => {
                   className="px-4 py-1.5 rounded-lg text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-xs"
                 >
                   Update Details
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 SCHEDULE NEW DRIVING TEST ENTRY MODAL (Supports multiple entries per candidate) */}
+      {newTestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5 text-teal-600" />
+                  Schedule Driving Test Entry
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Create a driving test entry (e.g. Car test, Bike test, or Re-test attempt)
+                </p>
+              </div>
+              <button
+                onClick={() => setNewTestModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewTest} className="space-y-4">
+              {/* Candidate Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Select Candidate *
+                </label>
+                <select
+                  required
+                  value={newTestCandidateId}
+                  onChange={(e) => {
+                    setNewTestCandidateId(e.target.value);
+                    const c = candidates.find((cand) => cand.id === e.target.value);
+                    if (c?.ll_number) setNewTestLLNumber(c.ll_number);
+                  }}
+                  className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                >
+                  <option value="">-- Choose Candidate --</option>
+                  {candidates.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name} ({c.candidate_code}) {c.mobile ? `— ${c.mobile}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Test Type / Entry Category with quick chips */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Test Category / Name *
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    '4-Wheeler (Car) DL Test',
+                    '2-Wheeler (Bike) DL Test',
+                    'Attempt 1: DL Test',
+                    'Attempt 2: Re-test Slot',
+                    'Learner Licence (LL) Test',
+                  ].map((preset) => (
+                    <button
+                      type="button"
+                      key={preset}
+                      onClick={() => setNewTestType(preset)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${
+                        newTestType === preset
+                          ? 'border-teal-600 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={newTestType}
+                  onChange={(e) => setNewTestType(e.target.value)}
+                  placeholder="e.g. 4-Wheeler (Car) DL Test"
+                  className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Stage Selection */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Pipeline Stage
+                  </label>
+                  <select
+                    value={newTestStage}
+                    onChange={(e) => setNewTestStage(e.target.value as RTOStage)}
+                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                  >
+                    <option value="test_booked">Test Scheduled</option>
+                    <option value="ll_pending">1. LL Pending</option>
+                    <option value="ll_completed">2. LL Completed</option>
+                    <option value="training_ongoing">3. Training Ongoing</option>
+                    <option value="test_completed">4. Test Completed</option>
+                    <option value="licence_received">5. DL Issued</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    RTO Office
+                  </label>
+                  <input
+                    type="text"
+                    value={newTestOffice}
+                    onChange={(e) => setNewTestOffice(e.target.value)}
+                    placeholder="e.g. Indiranagar RTO (KA-03)"
+                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Test Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Test Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newTestDate}
+                    onChange={(e) => setNewTestDate(e.target.value)}
+                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Slot Time
+                  </label>
+                  <input
+                    type="time"
+                    value={newTestTime}
+                    onChange={(e) => setNewTestTime(e.target.value)}
+                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* LL Number & Remarks */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Learner Licence (LL) #
+                  </label>
+                  <input
+                    type="text"
+                    value={newTestLLNumber}
+                    onChange={(e) => setNewTestLLNumber(e.target.value.toUpperCase())}
+                    placeholder="Optional LL number"
+                    className="w-full text-sm font-mono uppercase rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Remarks / Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={newTestRemarks}
+                    onChange={(e) => setNewTestRemarks(e.target.value)}
+                    placeholder="Optional notes"
+                    className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewTestModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-xs cursor-pointer"
+                >
+                  Add Test Entry
                 </button>
               </div>
             </form>

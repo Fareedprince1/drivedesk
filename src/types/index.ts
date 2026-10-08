@@ -146,6 +146,8 @@ export interface RTOTrainingRecord {
   enrollment_id: string;
   candidate_id: string;
   stage: RTOStage;
+  test_type?: string;
+  rto_office?: string;
   ll_number?: string;
   test_date?: string;
   test_time?: string;
