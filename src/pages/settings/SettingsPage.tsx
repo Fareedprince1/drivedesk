@@ -49,6 +49,20 @@ export const SettingsPage: React.FC = () => {
   // Reset Demo Data confirmation
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
+  useEffect(() => {
+    const handleSync = () => {
+      setPackages(db.getPackages());
+      setSettings(db.getSettings());
+      setActivityLogs(db.getActivityLogs());
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('drivedesk_sync_complete', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('drivedesk_sync_complete', handleSync);
+    };
+  }, []);
+
   // If not admin, block access
   if (!isAdmin) {
     return (
@@ -125,6 +139,7 @@ export const SettingsPage: React.FC = () => {
     if (window.confirm(`Are you sure you want to permanently delete package "${pkg.name}"?`)) {
       db.deletePackage(pkg.id, role);
       setPackages(db.getPackages());
+      setActivityLogs(db.getActivityLogs());
     }
   };
 

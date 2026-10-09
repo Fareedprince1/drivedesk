@@ -11,7 +11,6 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../lib/storage';
 
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
@@ -25,7 +24,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch
     return localStorage.getItem('theme') === 'dark' || 
       (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
-  const [settings] = useState(() => db.getSettings());
 
   useEffect(() => {
     if (isDark) {
@@ -40,8 +38,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch
   return (
     <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3 transition-colors">
       <div className="flex items-center justify-between gap-4">
-        {/* Left: Mobile hamburger & School Name */}
-        <div className="flex items-center gap-3">
+        {/* Left: Mobile hamburger */}
+        <div className="flex items-center gap-2">
           <button
             onClick={onToggleMobileMenu}
             className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
@@ -49,14 +47,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, onOpenSearch
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="hidden sm:block">
-            <h1 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-              {settings.school_name}
-            </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {settings.address.split(',')[1]?.trim() || 'Indiranagar, Bengaluru'}
-            </p>
-          </div>
         </div>
 
         {/* Center: Global Search Bar */}

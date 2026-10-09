@@ -36,6 +36,7 @@ export function generateUUID(): string {
 const STORAGE_KEYS = {
   SETTINGS: 'gem_settings',
   PACKAGES: 'gem_packages',
+  DELETED_PACKAGES: 'gem_deleted_packages',
   CANDIDATES: 'gem_candidates',
   ENROLLMENTS: 'gem_enrollments',
   PAYMENTS: 'gem_payments',
@@ -969,6 +970,7 @@ class DriveDeskStorage {
       // Initialize with clean data (0 candidates, 0 appointments, 0 payments, 0 vehicles, 0 instructors)
       this.set(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
       this.set(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
+      this.set(STORAGE_KEYS.DELETED_PACKAGES, []);
       this.set(STORAGE_KEYS.VEHICLES, []);
       this.set(STORAGE_KEYS.INSTRUCTORS, []);
       this.set(STORAGE_KEYS.INSTRUCTOR_LEAVES, []);
@@ -1104,7 +1106,11 @@ class DriveDeskStorage {
             q = q.is('deleted_at', null);
           }
           if (this.activeSchoolAdminId) {
-            q = q.or(`admin_id.eq.${this.activeSchoolAdminId},admin_id.is.null`);
+            if (table === 'packages') {
+              q = q.eq('admin_id', this.activeSchoolAdminId);
+            } else {
+              q = q.or(`admin_id.eq.${this.activeSchoolAdminId},admin_id.is.null`);
+            }
           }
           const res = await q;
           return res.data || [];
@@ -1127,19 +1133,31 @@ class DriveDeskStorage {
         queryTable('rto_tracking'),
       ]);
 
-      // Seed Packages if empty in cloud
+      // Manage Packages synchronization and initial seed
+      let finalPackages: Package[] = [];
+      const hasSeededPkgKey = `drivedesk_seeded_pkg_${this.activeSchoolAdminId || 'default'}`;
+      const deletedPkgIds = this.getDeletedPackageIds();
+
       if (!pkgs || pkgs.length === 0) {
-        try {
-          await supabase.from('packages').upsert(
-            DEFAULT_PACKAGES.map((p) => ({ ...p, admin_id: this.activeSchoolAdminId || null }))
-          );
-        } catch (e) {
-          console.warn(e);
+        if (!localStorage.getItem(hasSeededPkgKey)) {
+          try {
+            await supabase.from('packages').upsert(
+              DEFAULT_PACKAGES.map((p) => ({ ...p, admin_id: this.activeSchoolAdminId || null }))
+            );
+            localStorage.setItem(hasSeededPkgKey, 'true');
+          } catch (e) {
+            console.warn(e);
+          }
+          finalPackages = DEFAULT_PACKAGES.filter((p) => !deletedPkgIds.includes(p.id));
+        } else {
+          finalPackages = [];
         }
-        this.set(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
       } else {
-        this.set(STORAGE_KEYS.PACKAGES, pkgs);
+        localStorage.setItem(hasSeededPkgKey, 'true');
+        finalPackages = pkgs.filter((p: Package) => !deletedPkgIds.includes(p.id));
       }
+
+      this.set(STORAGE_KEYS.PACKAGES, finalPackages);
 
       // Seed Settings if empty in cloud
       if (!sett) {
@@ -1305,9 +1323,16 @@ class DriveDeskStorage {
     return updated;
   }
 
+  getDeletedPackageIds(): string[] {
+    return this.get<string[]>(STORAGE_KEYS.DELETED_PACKAGES, []);
+  }
+
   // --- PACKAGES ---
   getPackages(onlyActive = false): Package[] {
-    const list = this.get<Package[]>(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
+    const deletedIds = this.getDeletedPackageIds();
+    const list = this.get<Package[]>(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES).filter(
+      (p) => !deletedIds.includes(p.id)
+    );
     return onlyActive ? list.filter((p) => p.is_active) : list;
   }
 
@@ -1346,12 +1371,34 @@ class DriveDeskStorage {
   deletePackage(id: string, role: UserRole = 'admin'): void {
     const packages = this.getPackages();
     const idx = packages.findIndex((p) => p.id === id);
-    if (idx === -1) throw new Error('Package not found');
-    const old = packages[idx];
-    packages.splice(idx, 1);
-    this.set(STORAGE_KEYS.PACKAGES, packages);
-    this.logActivity('DELETE', 'packages', id, `Deleted package: ${old.name}`, old, undefined, role);
-    this.syncToCloud('packages', 'delete', undefined, id);
+    const old = idx !== -1 ? packages[idx] : undefined;
+    if (idx !== -1) {
+      packages.splice(idx, 1);
+      this.set(STORAGE_KEYS.PACKAGES, packages);
+    }
+
+    const deletedIds = this.getDeletedPackageIds();
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      this.set(STORAGE_KEYS.DELETED_PACKAGES, deletedIds);
+    }
+
+    if (old) {
+      this.logActivity('DELETE', 'packages', id, `Deleted package: ${old.name}`, old, undefined, role);
+    }
+
+    if (supabase) {
+      supabase
+        .from('packages')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error && error.code === '23503') {
+            // If historical student enrollments reference this package, mark is_active = false
+            supabase.from('packages').update({ is_active: false }).eq('id', id);
+          }
+        });
+    }
   }
 
   // --- SEQUENTIAL GENERATORS ---
