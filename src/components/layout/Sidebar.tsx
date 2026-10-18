@@ -66,16 +66,16 @@ export const Sidebar: React.FC = () => {
     <aside className="hidden lg:flex flex-col w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 h-screen sticky top-0 z-30 transition-all select-none">
       {/* Brand Header */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-700 to-teal-500 flex items-center justify-center text-white shadow-md shadow-teal-500/20">
-          <Car className="w-5 h-5" />
+        <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+          <img src="/gem-logo.png" alt="Gym Driving School Logo" className="w-full h-full object-contain" />
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-              Gem<span className="text-teal-600 dark:text-teal-400">DrivingSchool</span>
+            <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white truncate">
+              Gym<span className="text-teal-600 dark:text-teal-400">DrivingSchool</span>
             </span>
           </div>
-          <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block">
+          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block truncate">
             Admin Management Portal
           </span>
         </div>

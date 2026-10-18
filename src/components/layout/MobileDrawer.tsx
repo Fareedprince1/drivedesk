@@ -54,12 +54,12 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={onClose} />
       <div className="fixed inset-y-0 left-0 w-4/5 max-w-xs bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white">
-              <Car className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center overflow-hidden border border-slate-200 shrink-0">
+              <img src="/gem-logo.png" alt="Gym Driving School Logo" className="w-full h-full object-contain" />
             </div>
             <span className="font-bold text-base text-slate-900 dark:text-white">
-              Gem<span className="text-teal-600">DrivingSchool</span>
+              Gym<span className="text-teal-600">DrivingSchool</span>
             </span>
           </div>
           <button

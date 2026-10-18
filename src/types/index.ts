@@ -270,3 +270,77 @@ export interface Enquiry {
   created_at: string;
   updated_at: string;
 }
+
+// --- LANDING PAGE & CMS CONFIGURATION ---
+export interface LandingPageSections {
+  hero: boolean;
+  courses: boolean;
+  whyUs: boolean;
+  howItWorks: boolean;
+  trafficRules: boolean;
+  testimonials: boolean;
+  faq: boolean;
+  contact: boolean;
+}
+
+export interface LandingHeroConfig {
+  badge: string;
+  headline: string;
+  highlightWord: string;
+  subheadline: string;
+  ctaExploreText: string;
+  ctaLoginText: string;
+  statExperience: string;
+  statStudents: string;
+  statPassRate: string;
+}
+
+export interface LandingCourseConfig {
+  id: string;
+  title: string;
+  badge: string;
+  isPopular?: boolean;
+  description: string;
+  duration: string;
+  sessions: string;
+  fee: string;
+  features: string[];
+  imageUrl: string;
+}
+
+export interface LandingTestimonialConfig {
+  id: string;
+  author: string;
+  role: string;
+  course: string;
+  rating: number;
+  date: string;
+  comment: string;
+}
+
+export interface LandingFAQConfig {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface LandingPageConfig {
+  schoolName: string;
+  tagline: string;
+  phone: string;
+  altPhone: string;
+  email: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  openingHours: string;
+  operatingDays: string;
+  whatsappNumber: string;
+  logoUrl: string;
+  sections: LandingPageSections;
+  hero: LandingHeroConfig;
+  courses: LandingCourseConfig[];
+  testimonials: LandingTestimonialConfig[];
+  faqs: LandingFAQConfig[];
+}
+

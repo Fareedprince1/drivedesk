@@ -1,12 +1,16 @@
 import React from 'react';
 import { Calendar, Clock, Check, ArrowRight, Sparkles } from 'lucide-react';
-import { LANDING_DATA, type CourseItem } from '../../data/landingData';
+import { LANDING_DATA } from '../../data/landingData';
+import type { LandingCourseConfig } from '../../types';
 
 interface CoursesProps {
   onSelectCourse?: (courseTitle: string) => void;
+  courses?: LandingCourseConfig[];
 }
 
-export const Courses: React.FC<CoursesProps> = ({ onSelectCourse }) => {
+export const Courses: React.FC<CoursesProps> = ({ onSelectCourse, courses: passedCourses }) => {
+  const courseList = passedCourses && passedCourses.length > 0 ? passedCourses : LANDING_DATA.courses;
+
   const handleEnquire = (courseTitle: string) => {
     if (onSelectCourse) {
       onSelectCourse(courseTitle);
@@ -34,9 +38,9 @@ export const Courses: React.FC<CoursesProps> = ({ onSelectCourse }) => {
           </p>
         </div>
 
-        {/* 3 Course Cards Grid */}
+        {/* Course Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
-          {LANDING_DATA.courses.map((course: CourseItem) => {
+          {courseList.map((course) => {
             const isFeatured = course.isPopular;
 
             return (

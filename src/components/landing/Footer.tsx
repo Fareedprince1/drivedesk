@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
-import { Phone, Mail, MapPin, Car, Shield, FileText, X } from 'lucide-react';
+import { Phone, Mail, MapPin, Shield, FileText, X } from 'lucide-react';
 import { LANDING_DATA } from '../../data/landingData';
+import type { LandingPageConfig } from '../../types';
 
 interface FooterProps {
   onLoginClick?: () => void;
+  config?: LandingPageConfig;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onLoginClick }) => {
+export const Footer: React.FC<FooterProps> = ({ onLoginClick, config }) => {
   const [modalType, setModalType] = useState<'privacy' | 'terms' | null>(null);
+
+  const schoolName = config?.schoolName || LANDING_DATA.schoolInfo.name;
+  const tagline = config?.tagline || LANDING_DATA.schoolInfo.tagline;
+  const phone = config?.phone || LANDING_DATA.schoolInfo.phone;
+  const email = config?.email || LANDING_DATA.schoolInfo.email;
+  const addressLine1 = config?.addressLine1 || LANDING_DATA.schoolInfo.addressLine1;
+  const city = config?.city || LANDING_DATA.schoolInfo.city;
+  const openingHours = config?.openingHours || LANDING_DATA.schoolInfo.openingHours;
+  const logoUrl = config?.logoUrl || LANDING_DATA.schoolInfo.logoUrl;
 
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -24,23 +35,19 @@ export const Footer: React.FC<FooterProps> = ({ onLoginClick }) => {
           {/* Col 1: Logo & Mission Statement (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden border border-blue-200">
+              <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden border border-blue-200 shrink-0">
                 <img
-                  src={LANDING_DATA.schoolInfo.logoUrl}
-                  alt="GEM Driving School"
+                  src={logoUrl}
+                  alt="Gym Driving School Logo"
                   className="w-full h-full object-contain"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
                 />
-                <Car className="w-5 h-5 text-blue-700 hidden only:block" />
               </div>
               <span className="text-xl font-extrabold text-white tracking-tight">
-                GEM <span className="text-blue-400">DRIVING SCHOOL</span>
+                GYM <span className="text-blue-400">DRIVING SCHOOL</span>
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 max-w-sm leading-relaxed">
-              {LANDING_DATA.schoolInfo.tagline}. Dedicated to empowering learners with safe road habits, defensive driving skills, and hassle-free RTO licensing.
+              {tagline}. Dedicated to empowering learners with safe road habits, defensive driving skills, and hassle-free RTO licensing.
             </p>
             <div className="pt-2 text-xs text-amber-400 font-semibold">
               Govt. Authorized Driving Institute &bull; Certified Instructors

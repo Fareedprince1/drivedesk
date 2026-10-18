@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { LANDING_DATA } from '../../data/landingData';
+import type { LandingFAQConfig } from '../../types';
 
-export const FAQAccordion: React.FC = () => {
-  const [openId, setOpenId] = useState<string | null>(LANDING_DATA.faqs[0].id);
+interface FAQAccordionProps {
+  faqs?: LandingFAQConfig[];
+}
+
+export const FAQAccordion: React.FC<FAQAccordionProps> = ({ faqs: passedFaqs }) => {
+  const faqList = passedFaqs && passedFaqs.length > 0 ? passedFaqs : LANDING_DATA.faqs;
+  const [openId, setOpenId] = useState<string | null>(faqList[0]?.id || null);
 
   const toggleFAQ = (id: string) => {
     setOpenId(openId === id ? null : id);
@@ -26,9 +32,9 @@ export const FAQAccordion: React.FC = () => {
           </p>
         </div>
 
-        {/* 5 Questions Accordion List */}
+        {/* Questions Accordion List */}
         <div className="space-y-4">
-          {LANDING_DATA.faqs.map((faq, index) => {
+          {faqList.map((faq, index) => {
             const isOpen = openId === faq.id;
 
             return (

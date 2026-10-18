@@ -2,18 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { Send, Phone, Mail, MapPin, Clock, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
 import { LANDING_DATA } from '../../data/landingData';
 import { db } from '../../lib/storage';
+import type { LandingPageConfig } from '../../types';
 
 interface ContactSectionProps {
   selectedCourse?: string;
+  config?: LandingPageConfig;
 }
 
-export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }) => {
+export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse, config }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     course: selectedCourse || 'Four-Wheeler Comprehensive',
     message: '',
   });
+
+  const schoolName = config?.schoolName || LANDING_DATA.schoolInfo.name;
+  const addressLine1 = config?.addressLine1 || LANDING_DATA.schoolInfo.addressLine1;
+  const addressLine2 = config?.addressLine2 || LANDING_DATA.schoolInfo.addressLine2;
+  const city = config?.city || LANDING_DATA.schoolInfo.city;
+  const phone = config?.phone || LANDING_DATA.schoolInfo.phone;
+  const altPhone = config?.altPhone || LANDING_DATA.schoolInfo.altPhone;
+  const email = config?.email || LANDING_DATA.schoolInfo.email;
+  const openingHours = config?.openingHours || LANDING_DATA.schoolInfo.openingHours;
+  const operatingDays = config?.operatingDays || LANDING_DATA.schoolInfo.operatingDays;
+  const whatsappNumber = config?.whatsappNumber || LANDING_DATA.schoolInfo.whatsappNumber;
 
   const [submittedInfo, setSubmittedInfo] = useState<{ name: string; phone: string; course: string } | null>(null);
 
@@ -102,7 +115,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-          {/* Left Column: Contact Details Cards (Placeholders clearly marked) */}
+          {/* Left Column: Contact Details Cards */}
           <div className="lg:col-span-5 space-y-6">
             <div className="p-7 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-6 shadow-xl">
               <div>
@@ -110,7 +123,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
                   Driving Academy Campus
                 </span>
                 <h3 className="text-2xl font-bold text-white">
-                  {LANDING_DATA.schoolInfo.name}
+                  {schoolName}
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
                   Official training branch & student desk
@@ -126,14 +139,11 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
                   </div>
                   <div>
                     <span className="text-xs font-bold text-white block">Location / Address:</span>
-                    <p className="text-xs sm:text-sm text-slate-300">
-                      {LANDING_DATA.schoolInfo.addressLine1},<br />
-                      {LANDING_DATA.schoolInfo.addressLine2},<br />
-                      {LANDING_DATA.schoolInfo.city}
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                      {addressLine1},<br />
+                      {addressLine2 ? <>{addressLine2},<br /></> : null}
+                      {city}
                     </p>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block italic">
-                      [Placeholder address - update in landingData.ts]
-                    </span>
                   </div>
                 </div>
 
@@ -145,20 +155,19 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
                   <div>
                     <span className="text-xs font-bold text-white block">Phone / Helpline:</span>
                     <a
-                      href={`tel:${LANDING_DATA.schoolInfo.phone}`}
+                      href={`tel:${phone}`}
                       className="text-amber-400 hover:underline font-semibold block"
                     >
-                      {LANDING_DATA.schoolInfo.phone}
+                      {phone}
                     </a>
-                    <a
-                      href={`tel:${LANDING_DATA.schoolInfo.altPhone}`}
-                      className="text-xs text-slate-400 hover:text-white"
-                    >
-                      Alt: {LANDING_DATA.schoolInfo.altPhone}
-                    </a>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block italic">
-                      [Placeholder phone - update in landingData.ts]
-                    </span>
+                    {altPhone && (
+                      <a
+                        href={`tel:${altPhone}`}
+                        className="text-xs text-slate-400 hover:text-white"
+                      >
+                        Alt: {altPhone}
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -170,14 +179,11 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
                   <div>
                     <span className="text-xs font-bold text-white block">Email Enquiry:</span>
                     <a
-                      href={`mailto:${LANDING_DATA.schoolInfo.email}`}
-                      className="text-slate-200 hover:text-amber-400"
+                      href={`mailto:${email}`}
+                      className="text-slate-200 hover:text-amber-400 font-medium"
                     >
-                      {LANDING_DATA.schoolInfo.email}
+                      {email}
                     </a>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block italic">
-                      [Placeholder email - update in landingData.ts]
-                    </span>
                   </div>
                 </div>
 
@@ -189,10 +195,10 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
                   <div>
                     <span className="text-xs font-bold text-white block">Opening Hours:</span>
                     <p className="text-xs text-slate-300">
-                      {LANDING_DATA.schoolInfo.openingHours}
+                      {openingHours}
                     </p>
                     <span className="text-[11px] font-semibold text-emerald-400 block mt-0.5">
-                      {LANDING_DATA.schoolInfo.operatingDays}
+                      {operatingDays}
                     </span>
                   </div>
                 </div>

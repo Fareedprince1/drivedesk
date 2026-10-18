@@ -1,13 +1,15 @@
 import React from 'react';
 import { ArrowRight, LogIn, ShieldCheck, Award, Star, CheckCircle2 } from 'lucide-react';
 import { LANDING_DATA } from '../../data/landingData';
+import type { LandingPageConfig } from '../../types';
 
 interface HeroProps {
   onLoginClick?: () => void;
   onExploreClick?: () => void;
+  config?: LandingPageConfig;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onLoginClick, onExploreClick }) => {
+export const Hero: React.FC<HeroProps> = ({ onLoginClick, onExploreClick, config }) => {
   const handleScrollTo = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     const element = document.querySelector(id);
@@ -15,6 +17,11 @@ export const Hero: React.FC<HeroProps> = ({ onLoginClick, onExploreClick }) => {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  const badgeText = config?.hero?.badge || 'Govt. Approved Driving Academy • Admissions Open';
+  const headline = config?.hero?.headline || 'Learn to Drive with';
+  const highlightWord = config?.hero?.highlightWord || 'Confidence';
+  const subheadline = config?.hero?.subheadline || config?.tagline || LANDING_DATA.schoolInfo.subheadline;
 
   return (
     <section
@@ -32,20 +39,20 @@ export const Hero: React.FC<HeroProps> = ({ onLoginClick, onExploreClick }) => {
             {/* Top Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-900/60 border border-blue-700/60 text-blue-200 text-xs sm:text-sm font-medium shadow-sm backdrop-blur-sm">
               <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-              <span>Govt. Approved Driving Academy &bull; Admissions Open</span>
+              <span>{badgeText}</span>
             </div>
 
             {/* Big Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.15]">
-              Learn to Drive with <br className="hidden sm:inline" />
+              {headline} <br className="hidden sm:inline" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-200">
-                Confidence
+                {highlightWord}
               </span>
             </h1>
 
             {/* Subheadline line below headline */}
             <p className="text-base sm:text-lg lg:text-xl text-slate-300 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
-              {LANDING_DATA.schoolInfo.subheadline}
+              {subheadline}
             </p>
 
             {/* Two Main Action Buttons */}

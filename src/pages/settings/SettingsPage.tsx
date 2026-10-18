@@ -14,9 +14,14 @@ import {
   ShieldAlert,
   Database,
   Trash2,
+  Globe,
+  ExternalLink,
+  Eye,
+  Sparkles,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
-import type { Package, SchoolSettings, ActivityLogItem } from '../../types';
+import type { Package, SchoolSettings, ActivityLogItem, LandingPageConfig } from '../../types';
+import { DEFAULT_LANDING_CONFIG } from '../../data/landingData';
 import { formatINR, formatDateTime, getTodayIST } from '../../lib/formatters';
 import { Modal } from '../../components/common/Modal';
 import { Badge } from '../../components/common/Badge';
@@ -25,11 +30,12 @@ import { exportToJSON } from '../../lib/exportUtils';
 
 export const SettingsPage: React.FC = () => {
   const { user, isAdmin, role } = useAuth();
-  const [activeTab, setActiveTab] = useState<'packages' | 'profile' | 'rules' | 'staff' | 'logs'>('packages');
+  const [activeTab, setActiveTab] = useState<'packages' | 'profile' | 'rules' | 'staff' | 'logs' | 'landing'>('packages');
 
   const [packages, setPackages] = useState<Package[]>(() => db.getPackages());
   const [settings, setSettings] = useState<SchoolSettings>(() => db.getSettings());
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => db.getActivityLogs());
+  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(() => db.getLandingConfig());
 
   // Package Modal State
   const [isPkgModalOpen, setIsPkgModalOpen] = useState(false);
@@ -54,6 +60,7 @@ export const SettingsPage: React.FC = () => {
       setPackages(db.getPackages());
       setSettings(db.getSettings());
       setActivityLogs(db.getActivityLogs());
+      setLandingConfig(db.getLandingConfig());
     };
     window.addEventListener('storage', handleSync);
     window.addEventListener('drivedesk_sync_complete', handleSync);
@@ -150,13 +157,43 @@ export const SettingsPage: React.FC = () => {
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
+  const handleSaveLandingConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    db.saveLandingConfig(landingConfig);
+    setSaveMessage('Landing page configuration updated! Changes are live on the public website.');
+    setTimeout(() => setSaveMessage(''), 3500);
+  };
+
+  const handleToggleSection = (sectionKey: keyof LandingPageConfig['sections']) => {
+    const updated: LandingPageConfig = {
+      ...landingConfig,
+      sections: {
+        ...landingConfig.sections,
+        [sectionKey]: !landingConfig.sections[sectionKey],
+      },
+    };
+    setLandingConfig(updated);
+    db.saveLandingConfig(updated);
+    setSaveMessage(`Section "${sectionKey}" toggled ${updated.sections[sectionKey] ? 'ON (Visible)' : 'OFF (Hidden)'}.`);
+    setTimeout(() => setSaveMessage(''), 2500);
+  };
+
+  const handleResetLandingToDefault = () => {
+    if (window.confirm('Reset all landing page sections, copy, and contact info to default?')) {
+      setLandingConfig(DEFAULT_LANDING_CONFIG);
+      db.saveLandingConfig(DEFAULT_LANDING_CONFIG);
+      setSaveMessage('Landing page reset to clean default config.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
   const handleClearData = () => {
     db.clearAllData();
     setPackages(db.getPackages());
     setSettings(db.getSettings());
     setActivityLogs(db.getActivityLogs());
     setIsResetConfirmOpen(false);
-    setSaveMessage('All operational data cleared! Clean slate ready for Gem Driving School.');
+    setSaveMessage('All operational data cleared! Clean slate ready for Gym Driving School.');
     setTimeout(() => setSaveMessage(''), 4000);
   };
 
@@ -165,7 +202,8 @@ export const SettingsPage: React.FC = () => {
     setPackages(db.getPackages());
     setSettings(db.getSettings());
     setActivityLogs(db.getActivityLogs());
-    setSaveMessage('Sample demo records loaded for preview.');
+    setLandingConfig(db.getLandingConfig());
+    setSaveMessage('Rich realistic demo records loaded for submission & preview.');
     setTimeout(() => setSaveMessage(''), 4000);
   };
 
@@ -293,6 +331,18 @@ export const SettingsPage: React.FC = () => {
         >
           <History className="w-4 h-4" />
           <span>Activity Log</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('landing')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            activeTab === 'landing'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Globe className="w-4 h-4" />
+          <span>Landing Page (CMS)</span>
         </button>
       </div>
 
@@ -627,6 +677,365 @@ export const SettingsPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: LANDING PAGE CMS */}
+      {activeTab === 'landing' && (
+        <div className="space-y-6 max-w-4xl">
+          {/* Header Action Bar */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-teal-600" />
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  Landing Page CMS & Section Controller
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Toggle sections on/off, edit headlines, and update contact information shown to public visitors.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <a
+                href="/"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Preview Landing Page</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+
+              <button
+                type="button"
+                onClick={handleResetLandingToDefault}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset to Default</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 1. Section Visibility Toggles Grid */}
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                1. Landing Page Section Visibility
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Enable or disable entire sections on the public website with a single click.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+              {[
+                { key: 'hero' as const, label: 'Hero Banner', desc: 'Main headline, badge & call-to-action' },
+                { key: 'courses' as const, label: 'Course Packages', desc: 'Two-Wheeler, Car & Licence cards' },
+                { key: 'whyUs' as const, label: 'Why Choose Us', desc: '6 key academy benefits & badges' },
+                { key: 'howItWorks' as const, label: 'How It Works', desc: '4 sequential steps for learners' },
+                { key: 'trafficRules' as const, label: 'Traffic Rules', desc: 'Interactive road signs library' },
+                { key: 'testimonials' as const, label: 'Student Reviews', desc: 'Verified graduate testimonials' },
+                { key: 'faq' as const, label: 'FAQ Accordion', desc: 'Common questions & licensing rules' },
+                { key: 'contact' as const, label: 'Enquiry & Contact', desc: 'Quick enquiry form & campus address' },
+              ].map((item) => {
+                const isEnabled = landingConfig.sections[item.key] !== false;
+                return (
+                  <div
+                    key={item.key}
+                    onClick={() => handleToggleSection(item.key)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                      isEnabled
+                        ? 'border-teal-500 bg-teal-50/40 dark:bg-teal-950/20 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 opacity-60'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white">
+                          {item.label}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isEnabled
+                              ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-300'
+                              : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}
+                        >
+                          {isEnabled ? 'Active' : 'Hidden'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        {item.desc}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500">
+                      <span>Click to toggle</span>
+                      <span className="font-semibold text-teal-600 dark:text-teal-400">
+                        {isEnabled ? 'Turn OFF' : 'Turn ON'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Form for copy & contact editing */}
+          <form onSubmit={handleSaveLandingConfig} className="space-y-6">
+            {/* 2. Hero Section Content */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                2. Hero Section Messaging
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Main Headline (First Part)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={landingConfig.hero.headline}
+                    onChange={(e) =>
+                      setLandingConfig({
+                        ...landingConfig,
+                        hero: { ...landingConfig.hero, headline: e.target.value },
+                      })
+                    }
+                    placeholder="e.g. Learn to Drive with"
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Highlight Word (Amber Gradient)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={landingConfig.hero.highlightWord}
+                    onChange={(e) =>
+                      setLandingConfig({
+                        ...landingConfig,
+                        hero: { ...landingConfig.hero, highlightWord: e.target.value },
+                      })
+                    }
+                    placeholder="e.g. Confidence"
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Top Pill Badge Text
+                </label>
+                <input
+                  type="text"
+                  value={landingConfig.hero.badge}
+                  onChange={(e) =>
+                    setLandingConfig({
+                      ...landingConfig,
+                      hero: { ...landingConfig.hero, badge: e.target.value },
+                    })
+                  }
+                  placeholder="e.g. Govt. Approved Driving Academy • Admissions Open"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Hero Subheadline
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={landingConfig.hero.subheadline}
+                  onChange={(e) =>
+                    setLandingConfig({
+                      ...landingConfig,
+                      hero: { ...landingConfig.hero, subheadline: e.target.value },
+                    })
+                  }
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* 3. Academy Details & Public Contact Info */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                3. Academy Details & Contact Info (Landing Page & Footer)
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Academy Display Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={landingConfig.schoolName}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, schoolName: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Tagline
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.tagline}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, tagline: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Helpline / Phone *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={landingConfig.phone}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, phone: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Alternate Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.altPhone}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, altPhone: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    WhatsApp Number (with country code)
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.whatsappNumber}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, whatsappNumber: e.target.value })}
+                    placeholder="+919845012345"
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Enquiry Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={landingConfig.email}
+                  onChange={(e) => setLandingConfig({ ...landingConfig, email: e.target.value })}
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Address Line 1
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.addressLine1}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, addressLine1: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Address Line 2 (Landmark)
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.addressLine2}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, addressLine2: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  City, State & Pincode
+                </label>
+                <input
+                  type="text"
+                  value={landingConfig.city}
+                  onChange={(e) => setLandingConfig({ ...landingConfig, city: e.target.value })}
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Opening Hours
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.openingHours}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, openingHours: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Operating Days
+                  </label>
+                  <input
+                    type="text"
+                    value={landingConfig.operatingDays}
+                    onChange={(e) => setLandingConfig({ ...landingConfig, operatingDays: e.target.value })}
+                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md shadow-teal-600/20 transition cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save Landing Page Configuration</span>
+              </button>
+
+              <span className="text-xs text-slate-400">
+                Changes apply instantly across all visitor browsers.
+              </span>
+            </div>
+          </form>
         </div>
       )}
 

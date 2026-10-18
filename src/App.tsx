@@ -104,28 +104,17 @@ const PublicLoginRoute: React.FC = () => {
   return <Login />;
 };
 
-// Root Route: Unauthenticated visitors see the public landing page.
-// Authenticated staff/admins are routed to their management dashboard.
-const RootRoute: React.FC = () => {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) {
-    return <FullScreenLoader />;
-  }
-  if (!isAuthenticated) {
-    return <LandingPage />;
-  }
-  return <Navigate to="/dashboard" replace />;
-};
-
 export const App: React.FC = () => {
   return (
     <AuthProvider>
       <CloudSyncWatcher />
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<RootRoute />} />
+          {/* Public Website Routes (Root / always takes visitors to Landing Page) */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
+          <Route path="/courses" element={<LandingPage />} />
+          <Route path="/contact" element={<LandingPage />} />
           <Route path="/login" element={<PublicLoginRoute />} />
 
           {/* Protected Management Portal */}
@@ -136,6 +125,7 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           >
+            {/* Operational Management Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/enquiries" element={<EnquiriesPage />} />
             <Route path="/candidates" element={<CandidatesList />} />
@@ -145,7 +135,7 @@ export const App: React.FC = () => {
             <Route path="/vehicles" element={<VehiclesPage />} />
             <Route path="/driving-tests" element={<DrivingTestsPage />} />
 
-            {/* Admin Only Routes (Strict Financial Privacy) */}
+            {/* Admin Financial & Configuration Routes */}
             <Route
               path="/payments"
               element={
@@ -188,6 +178,7 @@ export const App: React.FC = () => {
             />
           </Route>
 
+          {/* Fallback to Public Landing Page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

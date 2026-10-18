@@ -21,8 +21,10 @@ import type {
   UserRole,
   Enquiry,
   EnquiryStatus,
+  LandingPageConfig,
 } from '../types';
 import { supabase } from './supabase';
+import { DEFAULT_LANDING_CONFIG } from '../data/landingData';
 
 export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -37,6 +39,7 @@ export function generateUUID(): string {
 
 const STORAGE_KEYS = {
   SETTINGS: 'gem_settings',
+  LANDING_CONFIG: 'gem_landing_config',
   PACKAGES: 'gem_packages',
   DELETED_PACKAGES: 'gem_deleted_packages',
   CANDIDATES: 'gem_candidates',
@@ -61,11 +64,11 @@ const STORAGE_KEYS = {
 // --- DEFAULT CLEAN DATA ---
 export const DEFAULT_SETTINGS: SchoolSettings = {
   id: 1,
-  school_name: 'Gem Driving School',
+  school_name: 'Gym Driving School',
   address: 'Indiranagar, Bengaluru, Karnataka 560038',
-  phone: '+91 98765 43210',
+  phone: '+91 98450 12345',
   gst_number: '',
-  receipt_footer_text: 'Thank you for choosing Gem Driving School. Safe driving begins here! Terms & conditions apply.',
+  receipt_footer_text: 'Thank you for choosing Gym Driving School. Safe driving begins here! Terms & conditions apply.',
   slot_length: 30,
   cancellation_cutoff_hours: 3,
   absent_consumes_class: true,
@@ -944,6 +947,7 @@ class DriveDeskStorage {
   public activeSchoolAdminId: string | null = null;
 
   constructor() {
+    if (typeof localStorage === 'undefined') return;
     try {
       const savedAuth = localStorage.getItem('gem_auth_user');
       if (savedAuth) {
@@ -964,6 +968,7 @@ class DriveDeskStorage {
   }
 
   ensureInitialized(force = false) {
+    if (typeof localStorage === 'undefined') return;
     if (!localStorage.getItem(STORAGE_KEYS.INIT_FLAG) || force) {
       // Clear out legacy drivedesk_* keys
       try {
@@ -1027,7 +1032,16 @@ class DriveDeskStorage {
 
   // Load sample demo data if the user wishes to preview realistic records
   loadDemoData() {
+    // Clear all soft-deletion lists so all vehicles, instructors, packages, and candidates are active
+    this.set(STORAGE_KEYS.DELETED_PACKAGES, []);
+    this.set(STORAGE_KEYS.DELETED_CANDIDATES, []);
+    this.set(STORAGE_KEYS.DELETED_INSTRUCTORS, []);
+    this.set(STORAGE_KEYS.DELETED_VEHICLES, []);
+
     const seed = generateSeedCandidatesAndData();
+    this.set(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
+    this.set(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+    this.set(STORAGE_KEYS.LANDING_CONFIG, DEFAULT_LANDING_CONFIG);
     this.set(STORAGE_KEYS.VEHICLES, DEFAULT_VEHICLES);
     this.set(STORAGE_KEYS.INSTRUCTORS, DEFAULT_INSTRUCTORS);
     this.set(STORAGE_KEYS.CANDIDATES, seed.candidates);
@@ -1037,7 +1051,107 @@ class DriveDeskStorage {
     this.set(STORAGE_KEYS.RTO, seed.rtoList);
     this.set(STORAGE_KEYS.EXPENSES, seed.defaultExpenses);
     this.set(STORAGE_KEYS.NOTES, seed.notesList);
-    this.logActivity('INSERT', 'system', 'demo', 'Loaded sample demo data for testing');
+
+    const demoEnquiries: Enquiry[] = [
+      {
+        id: generateUUID(),
+        full_name: 'Pooja Hegde',
+        phone: '9845123456',
+        course_interest: 'Four-Wheeler Comprehensive',
+        message: 'Looking for evening 5 PM classes near Indiranagar',
+        status: 'new',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: generateUUID(),
+        full_name: 'Aditya Sen',
+        phone: '9900112233',
+        course_interest: 'Two-Wheeler Training',
+        message: 'Want to prepare for RTO 8 track test',
+        status: 'contacted',
+        notes: 'Called and briefed about 10-day morning batch. Coming Saturday for registration.',
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: generateUUID(),
+        full_name: 'Rohan Deshmukh',
+        phone: '9880223344',
+        course_interest: 'Car + Licence Complete Package',
+        message: 'Need help with LL test and practical car classes',
+        status: 'new',
+        created_at: new Date(Date.now() - 172800000).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ];
+    this.set(STORAGE_KEYS.ENQUIRIES, demoEnquiries);
+
+    this.logActivity('INSERT', 'system', 'demo', 'Loaded full realistic demo data for website preview and submission');
+
+    // Background push to Supabase Cloud
+    if (supabase) {
+      DEFAULT_PACKAGES.forEach((p) => this.syncToCloud('packages', 'upsert', p));
+      DEFAULT_VEHICLES.forEach((v) => this.syncToCloud('vehicles', 'upsert', v));
+      DEFAULT_INSTRUCTORS.forEach((i) => this.syncToCloud('instructors', 'upsert', i));
+      seed.candidates.forEach((c) => this.syncToCloud('candidates', 'upsert', c));
+      seed.enrollments.forEach((e) => this.syncToCloud('enrollments', 'upsert', e));
+      seed.payments.forEach((p) => this.syncToCloud('payments', 'upsert', p));
+      demoEnquiries.forEach((en) => this.syncToCloud('enquiries', 'upsert', en));
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+  }
+
+  getLandingConfig(): LandingPageConfig {
+    const stored = this.get<LandingPageConfig | null>(STORAGE_KEYS.LANDING_CONFIG, null);
+    if (!stored) {
+      return DEFAULT_LANDING_CONFIG;
+    }
+    return {
+      ...DEFAULT_LANDING_CONFIG,
+      ...stored,
+      sections: {
+        ...DEFAULT_LANDING_CONFIG.sections,
+        ...(stored.sections || {}),
+      },
+      hero: {
+        ...DEFAULT_LANDING_CONFIG.hero,
+        ...(stored.hero || {}),
+      },
+    };
+  }
+
+  saveLandingConfig(config: LandingPageConfig, role: UserRole = 'admin'): LandingPageConfig {
+    this.set(STORAGE_KEYS.LANDING_CONFIG, config);
+    this.logActivity(
+      'UPDATE',
+      'settings',
+      'landing_config',
+      'Updated landing page CMS configuration and section visibility',
+      undefined,
+      config,
+      role
+    );
+
+    const currentSettings = this.getSettings();
+    const updatedSettings = {
+      ...currentSettings,
+      school_name: config.schoolName,
+      phone: config.phone,
+      address: `${config.addressLine1}, ${config.city}`,
+    };
+    this.set(STORAGE_KEYS.SETTINGS, updatedSettings);
+    this.syncToCloud('settings', 'upsert', updatedSettings);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+    return config;
   }
 
   resetAllData() {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/landing/Header';
 import { Hero } from '../components/landing/Hero';
@@ -10,10 +10,25 @@ import { Testimonials } from '../components/landing/Testimonials';
 import { FAQAccordion } from '../components/landing/FAQAccordion';
 import { ContactSection } from '../components/landing/ContactSection';
 import { Footer } from '../components/landing/Footer';
+import { db } from '../lib/storage';
+import type { LandingPageConfig } from '../types';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const [landingConfig, setLandingConfig] = useState<LandingPageConfig>(() => db.getLandingConfig());
   const [selectedCourseForEnquiry, setSelectedCourseForEnquiry] = useState<string>('Four-Wheeler Comprehensive');
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setLandingConfig(db.getLandingConfig());
+    };
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('drivedesk_sync_complete', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('drivedesk_sync_complete', handleUpdate);
+    };
+  }, []);
 
   const handleLoginClick = () => {
     navigate('/login');
@@ -23,49 +38,87 @@ export const LandingPage: React.FC = () => {
     setSelectedCourseForEnquiry(courseTitle);
   };
 
+  const sections = landingConfig.sections || {
+    hero: true,
+    courses: true,
+    whyUs: true,
+    howItWorks: true,
+    trafficRules: true,
+    testimonials: true,
+    faq: true,
+    contact: true,
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950 overflow-x-hidden">
-      {/* 1. Header (Sticky Nav with Customer Login & Hamburger) */}
-      <Header onLoginClick={handleLoginClick} />
+      {/* 1. Header (Sticky Nav with Customer Login / Admin Portal & Hamburger) */}
+      <Header onLoginClick={handleLoginClick} config={landingConfig} />
 
       <main className="flex-1">
         {/* 2. Hero Section */}
-        <Hero
-          onLoginClick={handleLoginClick}
-          onExploreClick={() => {
-            document.querySelector('#courses')?.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
+        {sections.hero !== false && (
+          <Hero
+            onLoginClick={handleLoginClick}
+            config={landingConfig}
+            onExploreClick={() => {
+              document.querySelector('#courses')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+        )}
 
-        {/* 3. Courses (3 cards with duration, sessions, fees, Enquire CTA) */}
-        <Courses onSelectCourse={handleCourseSelect} />
+        {/* 3. Courses */}
+        {sections.courses !== false && (
+          <Courses
+            courses={landingConfig.courses}
+            onSelectCourse={handleCourseSelect}
+          />
+        )}
 
-        {/* 4. Why Choose Us (6 feature points with icons) */}
-        <WhyChooseUs />
+        {/* 4. Why Choose Us */}
+        {sections.whyUs !== false && (
+          <WhyChooseUs />
+        )}
 
-        {/* 5. How It Works (4 sequential steps: Enquire -> Customer ID -> Login -> Manage) */}
-        <HowItWorks
-          onLoginClick={handleLoginClick}
-          onEnquireClick={() => {
-            document.querySelector('#contact')?.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
+        {/* 5. How It Works */}
+        {sections.howItWorks !== false && (
+          <HowItWorks
+            onLoginClick={handleLoginClick}
+            onEnquireClick={() => {
+              document.querySelector('#contact')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+        )}
 
-        {/* 6. Traffic Rules Preview (Road signs cards + Learn More modal) */}
-        <TrafficRulesPreview />
+        {/* 6. Traffic Rules Preview */}
+        {sections.trafficRules !== false && (
+          <TrafficRulesPreview />
+        )}
 
-        {/* 7. Testimonials (Marked clearly as Sample - replace with real reviews) */}
-        <Testimonials />
+        {/* 7. Testimonials */}
+        {sections.testimonials !== false && (
+          <Testimonials
+            testimonials={landingConfig.testimonials}
+          />
+        )}
 
-        {/* 8. FAQ Accordion (5 key questions) */}
-        <FAQAccordion />
+        {/* 8. FAQ Accordion */}
+        {sections.faq !== false && (
+          <FAQAccordion
+            faqs={landingConfig.faqs}
+          />
+        )}
 
         {/* 9. Contact & Quick Enquiry Form */}
-        <ContactSection selectedCourse={selectedCourseForEnquiry} />
+        {sections.contact !== false && (
+          <ContactSection
+            config={landingConfig}
+            selectedCourse={selectedCourseForEnquiry}
+          />
+        )}
       </main>
 
       {/* 10. Footer */}
-      <Footer onLoginClick={handleLoginClick} />
+      <Footer onLoginClick={handleLoginClick} config={landingConfig} />
     </div>
   );
 };

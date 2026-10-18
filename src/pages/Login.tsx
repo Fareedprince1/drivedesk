@@ -120,14 +120,14 @@ export const Login: React.FC = () => {
         
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-700 to-teal-500 mx-auto flex items-center justify-center text-white shadow-lg shadow-teal-500/20 mb-3">
-            <Car className="w-7 h-7" />
+          <div className="w-16 h-16 rounded-2xl bg-white p-1.5 mx-auto flex items-center justify-center shadow-md border border-slate-200 dark:border-slate-700 mb-3">
+            <img src="/gem-logo.png" alt="Gym Driving School" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Gem<span className="text-teal-600">DrivingSchool</span>
+            Gym<span className="text-teal-600">DrivingSchool</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Admin Management Portal • Gem Driving School
+            Admin Management Portal • Gym Driving School
           </p>
         </div>
 
