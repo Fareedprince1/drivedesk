@@ -45,6 +45,17 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
 
   const [error, setError] = useState('');
 
+  // Auto-sync selected package if initially empty when packages are loaded from cloud
+  React.useEffect(() => {
+    if (!selectedPkgId && packages.length > 0) {
+      const firstPkg = packages[0];
+      setSelectedPkgId(firstPkg.id);
+      setTotalClasses(firstPkg.total_classes);
+      setTotalFee(firstPkg.fee);
+      setPayAmount(firstPkg.fee);
+    }
+  }, [packages, selectedPkgId]);
+
   // When package selection changes, auto-fill classes and fee
   const handlePackageChange = (pkgId: string) => {
     setSelectedPkgId(pkgId);
@@ -62,6 +73,12 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const activePkgId = selectedPkgId || packages[0]?.id;
+    if (!activePkgId) {
+      setError('Please add or activate at least one driving course package in Settings before enrolling students.');
+      return;
+    }
 
     // Validations
     const cleanMobile = mobile.replace(/\D/g, '');
@@ -92,7 +109,7 @@ export const AddCandidateModal: React.FC<AddCandidateModalProps> = ({
           notes_summary: `Enrolled on ${joiningDate}`,
         },
         {
-          package_id: selectedPkgId,
+          package_id: activePkgId,
           total_classes: Number(totalClasses),
           total_fee: Number(totalFee),
           discount_amount: Number(discountAmount),

@@ -1077,11 +1077,11 @@ class DriveDeskStorage {
         : undefined;
 
       if (action === 'insert' && cleanPayload) {
-        let { error } = await supabase.from(table).insert([cleanPayload]);
+        let { error } = await supabase.from(table).upsert([cleanPayload]);
         if (error && table === 'expenses' && error.message?.includes('instructor_id')) {
           const fallbackPayload = { ...cleanPayload };
           delete fallbackPayload.instructor_id;
-          const retry = await supabase.from(table).insert([fallbackPayload]);
+          const retry = await supabase.from(table).upsert([fallbackPayload]);
           error = retry.error;
         }
         if (error) {
@@ -1296,21 +1296,67 @@ class DriveDeskStorage {
 
       // Direct cloud hydration - guarantees exact sync across all devices and incognito
       const deletedCandIds = this.getDeletedCandidateIds();
+      const existingLocalCands = this.get<Candidate[]>(STORAGE_KEYS.CANDIDATES, []);
       const activeCands = (cands || []).filter(
         (c: any) => !c.deleted_at && !deletedCandIds.includes(c.id)
       );
+      // Merge local candidates that were created locally and not yet fetched from cloud
+      for (const loc of existingLocalCands) {
+        if (!loc.deleted_at && !deletedCandIds.includes(loc.id) && !activeCands.some((c: any) => c.id === loc.id)) {
+          activeCands.push(loc);
+        }
+      }
+
+      const existingLocalEnrs = this.get<Enrollment[]>(STORAGE_KEYS.ENROLLMENTS, []);
+      const finalEnrs = [...(enrs || [])];
+      for (const loc of existingLocalEnrs) {
+        if (!finalEnrs.some((e: any) => e.id === loc.id)) {
+          finalEnrs.push(loc);
+        }
+      }
+
+      const existingLocalPays = this.get<Payment[]>(STORAGE_KEYS.PAYMENTS, []);
+      const finalPays = [...(pays || [])];
+      for (const loc of existingLocalPays) {
+        if (!finalPays.some((p: any) => p.id === loc.id)) {
+          finalPays.push(loc);
+        }
+      }
+
+      const existingLocalApps = this.get<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, []);
+      const finalApps = (apps || []).filter((a: any) => !a.deleted_at);
+      for (const loc of existingLocalApps) {
+        if (!loc.deleted_at && !finalApps.some((a: any) => a.id === loc.id)) {
+          finalApps.push(loc);
+        }
+      }
+
+      const existingLocalExps = this.get<Expense[]>(STORAGE_KEYS.EXPENSES, []);
+      const finalExps = [...(exps || [])];
+      for (const loc of existingLocalExps) {
+        if (!finalExps.some((e: any) => e.id === loc.id)) {
+          finalExps.push(loc);
+        }
+      }
+
+      const existingLocalEnqs = this.get<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
+      const finalEnqs = [...(enqs || [])];
+      for (const loc of existingLocalEnqs) {
+        if (!finalEnqs.some((e: any) => e.id === loc.id)) {
+          finalEnqs.push(loc);
+        }
+      }
+
       this.set(STORAGE_KEYS.CANDIDATES, activeCands);
-      this.set(STORAGE_KEYS.ENROLLMENTS, enrs || []);
-      this.set(STORAGE_KEYS.PAYMENTS, pays || []);
-      this.set(STORAGE_KEYS.APPOINTMENTS, apps || []);
+      this.set(STORAGE_KEYS.ENROLLMENTS, finalEnrs);
+      this.set(STORAGE_KEYS.PAYMENTS, finalPays);
+      this.set(STORAGE_KEYS.APPOINTMENTS, finalApps);
       this.set(STORAGE_KEYS.VEHICLES, finalVehicles);
       this.set(STORAGE_KEYS.INSTRUCTORS, finalInstructors);
-      this.set(STORAGE_KEYS.EXPENSES, exps || []);
+      this.set(STORAGE_KEYS.EXPENSES, finalExps);
       this.set(STORAGE_KEYS.NOTES, notes || []);
       this.set(STORAGE_KEYS.RTO, hydratedRTO);
-      if (enqs && Array.isArray(enqs) && enqs.length > 0) {
-        this.set(STORAGE_KEYS.ENQUIRIES, enqs);
-      }
+      this.set(STORAGE_KEYS.ENQUIRIES, finalEnqs);
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('drivedesk_sync_complete'));
@@ -1599,28 +1645,22 @@ class DriveDeskStorage {
     const matchedPkg =
       packages.find((p) =>
         enquiry.course_interest.toLowerCase().includes(p.name.toLowerCase())
-      ) || packages[0];
+      ) || packages[0] || DEFAULT_PACKAGES[0];
 
-    const packageSelection = matchedPkg
-      ? {
-          package_id: matchedPkg.id,
-          total_classes: matchedPkg.total_classes,
-          total_fee: matchedPkg.fee,
-          discount_amount: 0,
-          start_date: today,
-        }
-      : {
-          package_id: 'default-pkg',
-          total_classes: 15,
-          total_fee: 6499,
-          discount_amount: 0,
-          start_date: today,
-        };
+    const packageSelection = {
+      package_id: matchedPkg.id,
+      total_classes: matchedPkg.total_classes,
+      total_fee: matchedPkg.fee,
+      discount_amount: 0,
+      start_date: today,
+    };
+
+    const cleanMobile = enquiry.phone ? enquiry.phone.replace(/\D/g, '').slice(-10) : '9999999999';
 
     const result = this.createCandidateWithEnrollment(
       {
         full_name: enquiry.full_name,
-        mobile: enquiry.phone,
+        mobile: cleanMobile || enquiry.phone,
         joining_date: today,
         status: 'active',
         notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest}. ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
@@ -1631,6 +1671,57 @@ class DriveDeskStorage {
     );
 
     this.updateEnquiryStatus(id, 'converted', enquiry.notes, role);
+    return result.candidate;
+  }
+
+  async convertEnquiryToCandidateAsync(id: string, role: UserRole = 'admin'): Promise<Candidate> {
+    const enquiry = this.getEnquiryById(id);
+    if (!enquiry) throw new Error('Enquiry not found');
+
+    const today = new Date().toISOString().split('T')[0];
+    const packages = this.getPackages(true);
+    const matchedPkg =
+      packages.find((p) =>
+        enquiry.course_interest.toLowerCase().includes(p.name.toLowerCase())
+      ) || packages[0] || DEFAULT_PACKAGES[0];
+
+    const packageSelection = {
+      package_id: matchedPkg.id,
+      total_classes: matchedPkg.total_classes,
+      total_fee: matchedPkg.fee,
+      discount_amount: 0,
+      start_date: today,
+    };
+
+    const cleanMobile = enquiry.phone ? enquiry.phone.replace(/\D/g, '').slice(-10) : '9999999999';
+
+    const result = await this.createCandidateWithEnrollmentAsync(
+      {
+        full_name: enquiry.full_name,
+        mobile: cleanMobile || enquiry.phone,
+        joining_date: today,
+        status: 'active',
+        notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest}. ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
+      },
+      packageSelection,
+      undefined,
+      role
+    );
+
+    const updatedEnquiry = this.updateEnquiryStatus(id, 'converted', enquiry.notes, role);
+    if (supabase) {
+      try {
+        await this.syncToCloud('enquiries', 'update', updatedEnquiry, id);
+      } catch (e) {
+        console.warn('Enquiry status cloud sync warning:', e);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+
     return result.candidate;
   }
 

@@ -84,18 +84,23 @@ export const EnquiriesPage: React.FC = () => {
   };
 
   // Convert to Candidate Handler
-  const handleConvertToCandidate = (enquiry: Enquiry) => {
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+
+  const handleConvertToCandidate = async (enquiry: Enquiry) => {
     if (
       window.confirm(
         `Convert "${enquiry.full_name}" into an enrolled candidate? This will create their student profile and mark this enquiry as converted.`
       )
     ) {
+      setConvertingId(enquiry.id);
       try {
-        const candidate = db.convertEnquiryToCandidate(enquiry.id, role);
+        const candidate = await db.convertEnquiryToCandidateAsync(enquiry.id, role);
         setRefreshKey((k) => k + 1);
         navigate(`/candidates/${candidate.id}`);
       } catch (err: any) {
-        alert(err.message || 'Could not convert to candidate');
+        alert(err?.message || 'Could not convert to candidate');
+      } finally {
+        setConvertingId(null);
       }
     }
   };
@@ -392,12 +397,22 @@ export const EnquiriesPage: React.FC = () => {
                   {enquiry.status !== 'converted' && (
                     <button
                       type="button"
+                      disabled={convertingId === enquiry.id}
                       onClick={() => handleConvertToCandidate(enquiry)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white shadow-xs active:scale-95 transition"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-500 disabled:opacity-60 text-white shadow-xs active:scale-95 transition"
                       title="Create candidate record from this lead"
                     >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>Enroll as Student</span>
+                      {convertingId === enquiry.id ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Enrolling...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Enroll as Student</span>
+                        </>
+                      )}
                     </button>
                   )}
 
