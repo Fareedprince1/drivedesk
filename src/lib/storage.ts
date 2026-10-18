@@ -44,8 +44,10 @@ const STORAGE_KEYS = {
   ENROLLMENTS: 'gem_enrollments',
   PAYMENTS: 'gem_payments',
   INSTRUCTORS: 'gem_instructors',
+  DELETED_INSTRUCTORS: 'gem_deleted_instructors',
   INSTRUCTOR_LEAVES: 'gem_leaves',
   VEHICLES: 'gem_vehicles',
+  DELETED_VEHICLES: 'gem_deleted_vehicles',
   APPOINTMENTS: 'gem_appointments',
   RTO: 'gem_rto',
   EXPENSES: 'gem_expenses',
@@ -830,7 +832,7 @@ const DB_ALLOWED_COLUMNS: Record<string, string[]> = {
     'created_at', 'updated_at', 'admin_id'
   ],
   expenses: [
-    'id', 'expense_date', 'category', 'amount', 'vehicle_id',
+    'id', 'expense_date', 'category', 'amount', 'vehicle_id', 'instructor_id',
     'payment_mode', 'description', 'created_by', 'created_at', 'admin_id'
   ],
   candidate_notes: [
@@ -896,6 +898,9 @@ function sanitizePayload(
   }
   if ('vehicle_id' in cleaned && cleaned.vehicle_id !== null && (!cleaned.vehicle_id || !uuidRegex.test(cleaned.vehicle_id))) {
     cleaned.vehicle_id = null;
+  }
+  if ('instructor_id' in cleaned && cleaned.instructor_id !== null && (!cleaned.instructor_id || !uuidRegex.test(cleaned.instructor_id))) {
+    cleaned.instructor_id = null;
   }
 
   if (table === 'rto_tracking') {
@@ -976,7 +981,9 @@ class DriveDeskStorage {
       this.set(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES);
       this.set(STORAGE_KEYS.DELETED_PACKAGES, []);
       this.set(STORAGE_KEYS.VEHICLES, []);
+      this.set(STORAGE_KEYS.DELETED_VEHICLES, []);
       this.set(STORAGE_KEYS.INSTRUCTORS, []);
+      this.set(STORAGE_KEYS.DELETED_INSTRUCTORS, []);
       this.set(STORAGE_KEYS.INSTRUCTOR_LEAVES, []);
       this.set(STORAGE_KEYS.CANDIDATES, []);
       this.set(STORAGE_KEYS.DELETED_CANDIDATES, []);
@@ -1070,13 +1077,25 @@ class DriveDeskStorage {
         : undefined;
 
       if (action === 'insert' && cleanPayload) {
-        const { error } = await supabase.from(table).insert([cleanPayload]);
+        let { error } = await supabase.from(table).insert([cleanPayload]);
+        if (error && table === 'expenses' && error.message?.includes('instructor_id')) {
+          const fallbackPayload = { ...cleanPayload };
+          delete fallbackPayload.instructor_id;
+          const retry = await supabase.from(table).insert([fallbackPayload]);
+          error = retry.error;
+        }
         if (error) {
           console.warn(`Supabase cloud insert warning (${table}):`, error.message);
           return { success: false, error: error.message };
         }
       } else if (action === 'update' && id && cleanPayload) {
-        const { error } = await supabase.from(table).update(cleanPayload).eq('id', id);
+        let { error } = await supabase.from(table).update(cleanPayload).eq('id', id);
+        if (error && table === 'expenses' && error.message?.includes('instructor_id')) {
+          const fallbackPayload = { ...cleanPayload };
+          delete fallbackPayload.instructor_id;
+          const retry = await supabase.from(table).update(fallbackPayload).eq('id', id);
+          error = retry.error;
+        }
         if (error) {
           console.warn(`Supabase cloud update warning (${table}):`, error.message);
           return { success: false, error: error.message };
@@ -1183,6 +1202,7 @@ class DriveDeskStorage {
       // Manage Instructors synchronization and initial seed
       let finalInstructors = insts || [];
       const hasSeededInstKey = `drivedesk_seeded_inst_${this.activeSchoolAdminId || 'default'}`;
+      const deletedInstIds = this.getDeletedInstructorIds();
       if (!insts || insts.length === 0) {
         if (!localStorage.getItem(hasSeededInstKey)) {
           try {
@@ -1193,17 +1213,19 @@ class DriveDeskStorage {
           } catch (e) {
             console.warn(e);
           }
-          finalInstructors = DEFAULT_INSTRUCTORS;
+          finalInstructors = DEFAULT_INSTRUCTORS.filter((i) => !deletedInstIds.includes(i.id));
         } else {
           finalInstructors = [];
         }
       } else {
         localStorage.setItem(hasSeededInstKey, 'true');
+        finalInstructors = (insts || []).filter((i: Instructor) => !deletedInstIds.includes(i.id));
       }
 
       // Manage Vehicles synchronization and initial seed
       let finalVehicles = vehs || [];
       const hasSeededVehKey = `drivedesk_seeded_veh_${this.activeSchoolAdminId || 'default'}`;
+      const deletedVehIds = this.getDeletedVehicleIds();
       if (!vehs || vehs.length === 0) {
         if (!localStorage.getItem(hasSeededVehKey)) {
           try {
@@ -1214,12 +1236,13 @@ class DriveDeskStorage {
           } catch (e) {
             console.warn(e);
           }
-          finalVehicles = DEFAULT_VEHICLES;
+          finalVehicles = DEFAULT_VEHICLES.filter((v) => !deletedVehIds.includes(v.id));
         } else {
           finalVehicles = [];
         }
       } else {
         localStorage.setItem(hasSeededVehKey, 'true');
+        finalVehicles = (vehs || []).filter((v: Vehicle) => !deletedVehIds.includes(v.id));
       }
 
       // Hydrate RTO records with candidate linkage & test_type / rto_office metadata
@@ -1444,6 +1467,14 @@ class DriveDeskStorage {
 
   getDeletedCandidateIds(): string[] {
     return this.get<string[]>(STORAGE_KEYS.DELETED_CANDIDATES, []);
+  }
+
+  getDeletedInstructorIds(): string[] {
+    return this.get<string[]>(STORAGE_KEYS.DELETED_INSTRUCTORS, []);
+  }
+
+  getDeletedVehicleIds(): string[] {
+    return this.get<string[]>(STORAGE_KEYS.DELETED_VEHICLES, []);
   }
 
   // --- ENQUIRIES / LEADS (STAGE 2) ---
@@ -2139,7 +2170,9 @@ class DriveDeskStorage {
 
   // --- INSTRUCTORS & LEAVES ---
   getInstructors(): Instructor[] {
-    return this.get<Instructor[]>(STORAGE_KEYS.INSTRUCTORS, DEFAULT_INSTRUCTORS);
+    const deletedIds = this.getDeletedInstructorIds();
+    const list = this.get<Instructor[]>(STORAGE_KEYS.INSTRUCTORS, DEFAULT_INSTRUCTORS);
+    return list.filter((i) => !deletedIds.includes(i.id));
   }
 
   getInstructorById(id: string): Instructor | undefined {
@@ -2167,6 +2200,13 @@ class DriveDeskStorage {
     list.splice(idx, 1);
     this.set(STORAGE_KEYS.INSTRUCTORS, list);
 
+    // Track ID in deleted instructors list to prevent resurrecting
+    const deletedIds = this.getDeletedInstructorIds();
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      this.set(STORAGE_KEYS.DELETED_INSTRUCTORS, deletedIds);
+    }
+
     // Unassign this instructor from any vehicle
     const vehicles = this.getVehicles();
     vehicles.forEach((v) => {
@@ -2180,6 +2220,19 @@ class DriveDeskStorage {
     const remainingAppointments = appointments.filter((a) => a.instructor_id !== id);
     if (remainingAppointments.length !== appointments.length) {
       this.set(STORAGE_KEYS.APPOINTMENTS, remainingAppointments);
+    }
+
+    // Nullify instructor_id in matching expenses
+    const expenses = this.getExpenses();
+    let expModified = false;
+    expenses.forEach((e) => {
+      if (e.instructor_id === id) {
+        e.instructor_id = null;
+        expModified = true;
+      }
+    });
+    if (expModified) {
+      this.set(STORAGE_KEYS.EXPENSES, expenses);
     }
 
     // In Supabase, delete any appointments for this instructor first so foreign keys don't block deletion
@@ -2219,7 +2272,9 @@ class DriveDeskStorage {
 
   // --- VEHICLES ---
   getVehicles(): Vehicle[] {
-    return this.get<Vehicle[]>(STORAGE_KEYS.VEHICLES, DEFAULT_VEHICLES);
+    const deletedIds = this.getDeletedVehicleIds();
+    const list = this.get<Vehicle[]>(STORAGE_KEYS.VEHICLES, DEFAULT_VEHICLES);
+    return list.filter((v) => !deletedIds.includes(v.id));
   }
 
   getVehicleById(id: string): Vehicle | undefined {
@@ -2237,6 +2292,12 @@ class DriveDeskStorage {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    const deletedIds = this.getDeletedVehicleIds();
+    if (deletedIds.includes(newVehicle.id)) {
+      this.set(STORAGE_KEYS.DELETED_VEHICLES, deletedIds.filter((id) => id !== newVehicle.id));
+    }
+
     list.push(newVehicle);
     this.set(STORAGE_KEYS.VEHICLES, list);
     this.logActivity('INSERT', 'vehicles', newVehicle.id, `Created vehicle ${newVehicle.registration_number}`, undefined, newVehicle, role);
@@ -2265,6 +2326,13 @@ class DriveDeskStorage {
     list.splice(idx, 1);
     this.set(STORAGE_KEYS.VEHICLES, list);
 
+    // Track ID in deleted vehicles list to prevent resurrecting
+    const deletedIds = this.getDeletedVehicleIds();
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      this.set(STORAGE_KEYS.DELETED_VEHICLES, deletedIds);
+    }
+
     // Unassign vehicle from any instructor
     const instructors = this.getInstructors();
     instructors.forEach((i) => {
@@ -2278,6 +2346,19 @@ class DriveDeskStorage {
     const remainingAppointments = appointments.filter((a) => a.vehicle_id !== id);
     if (remainingAppointments.length !== appointments.length) {
       this.set(STORAGE_KEYS.APPOINTMENTS, remainingAppointments);
+    }
+
+    // Nullify vehicle_id in matching expenses
+    const expenses = this.getExpenses();
+    let expModified = false;
+    expenses.forEach((e) => {
+      if (e.vehicle_id === id) {
+        e.vehicle_id = null;
+        expModified = true;
+      }
+    });
+    if (expModified) {
+      this.set(STORAGE_KEYS.EXPENSES, expenses);
     }
 
     // In Supabase, delete any appointments for this vehicle first so foreign keys don't block deletion
@@ -2888,6 +2969,8 @@ class DriveDeskStorage {
     const list = this.getExpenses();
     const newExpense: Expense = {
       ...data,
+      vehicle_id: data.vehicle_id || null,
+      instructor_id: data.instructor_id || null,
       id: generateUUID(),
       created_at: new Date().toISOString(),
     };
@@ -2962,6 +3045,10 @@ class DriveDeskStorage {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    const deletedIds = this.getDeletedInstructorIds();
+    if (deletedIds.includes(newInst.id)) {
+      this.set(STORAGE_KEYS.DELETED_INSTRUCTORS, deletedIds.filter((id) => id !== newInst.id));
+    }
     list.push(newInst);
     this.set(STORAGE_KEYS.INSTRUCTORS, list);
     this.logActivity('INSERT', 'instructors', newInst.id, `Created instructor ${newInst.name}`, undefined, newInst, role);

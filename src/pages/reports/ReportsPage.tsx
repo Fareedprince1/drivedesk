@@ -138,7 +138,7 @@ export const ReportsPage: React.FC = () => {
     return { total, completed, absent, cancelled, noShowRate, completionRate };
   }, [filteredAppointments]);
 
-  // Instructor Utilization
+  // Instructor Utilization & Compensation
   const instructorStats = useMemo(() => {
     return instructors.map((inst) => {
       const instApps = filteredAppointments.filter((a) => a.instructor_id === inst.id);
@@ -146,15 +146,21 @@ export const ReportsPage: React.FC = () => {
       const absent = instApps.filter((a) => a.status === 'absent').length;
       const completionRate = instApps.length > 0 ? Math.round((completed / instApps.length) * 100) : 0;
 
+      // Calculate total salary paid to this instructor in the selected date range
+      const salaryPaid = filteredExpenses
+        .filter((e) => e.category === 'salary' && e.instructor_id === inst.id)
+        .reduce((sum, e) => sum + e.amount, 0);
+
       return {
         instructor: inst,
         totalClasses: instApps.length,
         completed,
         absent,
         completionRate,
+        salaryPaid,
       };
     });
-  }, [instructors, filteredAppointments]);
+  }, [instructors, filteredAppointments, filteredExpenses]);
 
   // Vehicle Stats
   const vehicleStats = useMemo(() => {
@@ -260,13 +266,14 @@ export const ReportsPage: React.FC = () => {
       });
       exportToCSV(`GemDrivingSchool_Appointments_${startDate}_to_${endDate}.csv`, headers, rows);
     } else if (activeTab === 'instructors') {
-      const headers = ['Instructor Name', 'Phone', 'Total Scheduled', 'Completed Classes', 'No-Shows', 'Completion Rate %'];
+      const headers = ['Instructor Name', 'Phone Number', 'Total Scheduled', 'Completed Classes', 'Student No-Shows', 'Salary Paid (INR)', 'Completion Rate %'];
       const rows = instructorStats.map((s) => [
         s.instructor.name,
         s.instructor.mobile,
         s.totalClasses,
         s.completed,
         s.absent,
+        s.salaryPaid,
         `${s.completionRate}%`,
       ]);
       exportToCSV(`GemDrivingSchool_Instructors_Utilization_${startDate}_to_${endDate}.csv`, headers, rows);
@@ -705,42 +712,87 @@ export const ReportsPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: INSTRUCTOR UTILIZATION */}
+      {/* TAB 4: INSTRUCTOR UTILIZATION & SALARIES */}
       {activeTab === 'instructors' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Summary KPI Cards for Instructors */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-xs">
+              <span className="text-xs text-slate-500 font-medium">Total Instructors</span>
+              <div className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{instructors.length}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-xs">
+              <span className="text-xs text-slate-500 font-medium">Active On Duty</span>
+              <div className="text-2xl font-bold mt-1 text-teal-600">
+                {instructors.filter((i) => i.status === 'active').length}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-xs">
+              <span className="text-xs text-slate-500 font-medium">Lessons Delivered</span>
+              <div className="text-2xl font-bold mt-1 text-emerald-600">
+                {instructorStats.reduce((sum, s) => sum + s.completed, 0)}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-xs">
+              <span className="text-xs text-slate-500 font-medium">Total Salary Paid (Period)</span>
+              <div className="text-2xl font-bold mt-1 text-purple-600 dark:text-purple-400 font-mono">
+                {formatINR(instructorStats.reduce((sum, s) => sum + s.salaryPaid, 0))}
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-xs">
             <div className="p-4 border-b border-slate-200 dark:border-slate-700">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                Instructor Performance & Lesson Delivery
+                Instructor Performance & Salary Disbursements
               </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-slate-500 uppercase">
-                    <th className="py-3 px-4">Instructor</th>
-                    <th className="py-3 px-3">Contact</th>
+                    <th className="py-3 px-4">Instructor Name</th>
+                    <th className="py-3 px-3">Contact Phone</th>
                     <th className="py-3 px-3 text-center">Total Scheduled</th>
                     <th className="py-3 px-3 text-center">Completed</th>
                     <th className="py-3 px-3 text-center">Student No-Shows</th>
+                    <th className="py-3 px-4 text-right">Salary Paid (₹)</th>
                     <th className="py-3 px-4 text-right">Completion Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {instructorStats.map((item) => (
-                    <tr key={item.instructor.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                        {item.instructor.name}
-                      </td>
-                      <td className="py-3 px-3 text-slate-500 font-mono">{item.instructor.mobile}</td>
-                      <td className="py-3 px-3 text-center font-bold">{item.totalClasses}</td>
-                      <td className="py-3 px-3 text-center text-emerald-600 font-bold">{item.completed}</td>
-                      <td className="py-3 px-3 text-center text-rose-600 font-bold">{item.absent}</td>
-                      <td className="py-3 px-4 text-right">
-                        <span className="font-bold text-teal-600 text-sm">{item.completionRate}%</span>
+                  {instructorStats.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
+                        No instructors registered yet.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    instructorStats.map((item) => (
+                      <tr key={item.instructor.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600">
+                              <Users className="h-3.5 w-3.5" />
+                            </span>
+                            <span>{item.instructor.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300 font-mono font-medium">
+                          {item.instructor.mobile}
+                        </td>
+                        <td className="py-3 px-3 text-center font-bold">{item.totalClasses}</td>
+                        <td className="py-3 px-3 text-center text-emerald-600 font-bold">{item.completed}</td>
+                        <td className="py-3 px-3 text-center text-rose-600 font-bold">{item.absent}</td>
+                        <td className="py-3 px-4 text-right font-bold text-purple-600 dark:text-purple-400 font-mono">
+                          {formatINR(item.salaryPaid)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="font-bold text-teal-600 text-sm">{item.completionRate}%</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

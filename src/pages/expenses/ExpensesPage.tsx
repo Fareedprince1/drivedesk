@@ -22,7 +22,7 @@ import { db } from '../../lib/storage';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatINR, getTodayIST } from '../../lib/formatters';
 import { exportToCSV } from '../../lib/exportUtils';
-import type { Expense, ExpenseCategory, PaymentMode, Vehicle } from '../../types';
+import type { Expense, ExpenseCategory, PaymentMode, Vehicle, Instructor } from '../../types';
 
 const CATEGORIES: {
   key: ExpenseCategory;
@@ -62,6 +62,7 @@ export const ExpensesPage: React.FC = () => {
     category: ExpenseCategory;
     amount: string;
     vehicle_id: string;
+    instructor_id: string;
     payment_mode: PaymentMode;
     description: string;
   }>({
@@ -69,11 +70,13 @@ export const ExpensesPage: React.FC = () => {
     category: 'fuel',
     amount: '',
     vehicle_id: '',
+    instructor_id: '',
     payment_mode: 'upi',
     description: '',
   });
 
   const vehicles: Vehicle[] = useMemo(() => db.getVehicles(), [dataVersion]);
+  const instructors: Instructor[] = useMemo(() => db.getInstructors(), [dataVersion]);
   const expenses: Expense[] = useMemo(() => db.getExpenses(), [dataVersion]);
 
   // Current Month calculations
@@ -155,12 +158,14 @@ export const ExpensesPage: React.FC = () => {
         const amountMatch = String(item.amount).includes(q);
         const vehicle = vehicles.find((v) => v.id === item.vehicle_id);
         const vehMatch = vehicle ? `${vehicle.model} ${vehicle.registration_number}`.toLowerCase().includes(q) : false;
-        return descMatch || catMatch || amountMatch || vehMatch;
+        const instructor = instructors.find((i) => i.id === item.instructor_id);
+        const instMatch = instructor ? `${instructor.name} ${instructor.mobile}`.toLowerCase().includes(q) : false;
+        return descMatch || catMatch || amountMatch || vehMatch || instMatch;
       }
 
       return true;
     });
-  }, [expenses, dateFilter, selectedCategory, selectedVehicle, searchQuery, currentMonthPrefix, lastMonthPrefix, vehicles]);
+  }, [expenses, dateFilter, selectedCategory, selectedVehicle, searchQuery, currentMonthPrefix, lastMonthPrefix, vehicles, instructors]);
 
   // Handlers
   const handleOpenAdd = () => {
@@ -169,6 +174,7 @@ export const ExpensesPage: React.FC = () => {
       category: 'fuel',
       amount: '',
       vehicle_id: '',
+      instructor_id: '',
       payment_mode: 'upi',
       description: '',
     });
@@ -185,7 +191,8 @@ export const ExpensesPage: React.FC = () => {
         expense_date: form.expense_date,
         category: form.category,
         amount: parsedAmount,
-        vehicle_id: form.vehicle_id || null,
+        vehicle_id: form.category === 'salary' ? null : (form.vehicle_id || null),
+        instructor_id: form.category === 'salary' ? (form.instructor_id || null) : null,
         payment_mode: form.payment_mode,
         description: form.description,
         created_by: currentRole === 'admin' ? 'Admin' : 'Staff',
@@ -204,6 +211,7 @@ export const ExpensesPage: React.FC = () => {
       category: item.category,
       amount: String(item.amount),
       vehicle_id: item.vehicle_id || '',
+      instructor_id: item.instructor_id || '',
       payment_mode: item.payment_mode,
       description: item.description,
     });
@@ -222,7 +230,8 @@ export const ExpensesPage: React.FC = () => {
         expense_date: form.expense_date,
         category: form.category,
         amount: parsedAmount,
-        vehicle_id: form.vehicle_id || null,
+        vehicle_id: form.category === 'salary' ? null : (form.vehicle_id || null),
+        instructor_id: form.category === 'salary' ? (form.instructor_id || null) : null,
         payment_mode: form.payment_mode,
         description: form.description,
       },
@@ -241,15 +250,23 @@ export const ExpensesPage: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Date', 'Category', 'Amount (INR)', 'Payment Mode', 'Vehicle', 'Description', 'Recorded By'];
+    const headers = ['Date', 'Category', 'Amount (INR)', 'Payment Mode', 'Associated Reference (Vehicle / Instructor)', 'Description', 'Recorded By'];
     const rows = filteredExpenses.map((e) => {
       const veh = vehicles.find((v) => v.id === e.vehicle_id);
+      const inst = instructors.find((i) => i.id === e.instructor_id);
+      let reference = '-';
+      if (e.category === 'salary') {
+        reference = inst ? `${inst.name} (${inst.mobile})` : 'General Staff Salary';
+      } else if (veh) {
+        reference = `${veh.model} (${veh.registration_number})`;
+      }
+
       return [
         formatDate(e.expense_date),
         e.category.toUpperCase().replace('_', ' '),
         e.amount,
         e.payment_mode.toUpperCase(),
-        veh ? `${veh.model} (${veh.registration_number})` : '-',
+        reference,
         e.description,
         e.created_by || 'Admin',
       ];
@@ -421,7 +438,7 @@ export const ExpensesPage: React.FC = () => {
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">Description</th>
-                <th className="py-3 px-3">Vehicle</th>
+                <th className="py-3 px-3">Vehicle / Instructor</th>
                 <th className="py-3 px-3">Mode</th>
                 <th className="py-3 px-4 text-right">Amount</th>
                 <th className="py-3 px-4 text-right">Actions</th>
@@ -465,7 +482,23 @@ export const ExpensesPage: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-3 whitespace-nowrap">
-                        {vehicle ? (
+                        {item.category === 'salary' ? (
+                          (() => {
+                            const inst = instructors.find((i) => i.id === item.instructor_id);
+                            return inst ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-semibold border border-purple-200 dark:border-purple-800">
+                                <Users className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+                                <span>{inst.name}</span>
+                                <span className="font-mono text-[10px] opacity-80">({inst.mobile})</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[11px]">
+                                <Users className="h-3 w-3 shrink-0" />
+                                General Staff Salary
+                              </span>
+                            );
+                          })()
+                        ) : vehicle ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-mono">
                             <Car className="h-3 w-3" />
                             {vehicle.model}
@@ -534,9 +567,32 @@ export const ExpensesPage: React.FC = () => {
                       <p className="text-xs text-slate-800 dark:text-slate-200 font-medium mt-1">
                         {item.description || 'No description'}
                       </p>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        {formatDate(item.expense_date)} • <span className="uppercase font-semibold">{item.payment_mode}</span>
-                        {vehicle && ` • ${vehicle.model} (${vehicle.registration_number})`}
+                      <div className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span>{formatDate(item.expense_date)}</span>
+                        <span>•</span>
+                        <span className="uppercase font-semibold">{item.payment_mode}</span>
+                        {item.category === 'salary' ? (
+                          (() => {
+                            const inst = instructors.find((i) => i.id === item.instructor_id);
+                            return (
+                              <>
+                                <span>•</span>
+                                <span className="text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {inst ? `${inst.name} (${inst.mobile})` : 'General Staff Salary'}
+                                </span>
+                              </>
+                            );
+                          })()
+                        ) : vehicle ? (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Car className="h-3 w-3" />
+                              {vehicle.model} ({vehicle.registration_number})
+                            </span>
+                          </>
+                        ) : null}
                       </div>
                     </div>
 
@@ -628,7 +684,15 @@ export const ExpensesPage: React.FC = () => {
                 </label>
                 <select
                   value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
+                  onChange={(e) => {
+                    const nextCat = e.target.value as ExpenseCategory;
+                    setForm((prev) => ({
+                      ...prev,
+                      category: nextCat,
+                      vehicle_id: nextCat === 'salary' ? '' : prev.vehicle_id,
+                      instructor_id: nextCat === 'salary' ? prev.instructor_id : '',
+                    }));
+                  }}
                   className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
                 >
                   {CATEGORIES.map((cat) => (
@@ -639,24 +703,63 @@ export const ExpensesPage: React.FC = () => {
                 </select>
               </div>
 
-              {/* Vehicle (optional or recommended for fuel/service/repairs) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Associated Vehicle (Optional)
-                </label>
-                <select
-                  value={form.vehicle_id}
-                  onChange={(e) => setForm({ ...form, vehicle_id: e.target.value })}
-                  className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
-                >
-                  <option value="">None / General Expense</option>
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.model} ({v.registration_number})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Dynamic Reference Field: Instructor for salary, Vehicle for fuel/service/repairs */}
+              {form.category === 'salary' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-purple-700 dark:text-purple-300 mb-1 flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-purple-600" />
+                    Associated Instructor (Name & Mobile) *
+                  </label>
+                  <select
+                    value={form.instructor_id}
+                    onChange={(e) => {
+                      const instId = e.target.value;
+                      const selectedInst = instructors.find((i) => i.id === instId);
+                      setForm((prev) => ({
+                        ...prev,
+                        instructor_id: instId,
+                        vehicle_id: '',
+                        description:
+                          !prev.description || prev.description.startsWith('Salary payout')
+                            ? selectedInst
+                              ? `Salary payout for ${selectedInst.name} (${selectedInst.mobile})`
+                              : prev.description
+                            : prev.description,
+                      }));
+                    }}
+                    className="w-full text-xs font-medium rounded-lg border border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-950/20 p-2 text-slate-900 dark:text-white focus:outline-purple-500"
+                  >
+                    <option value="">General Staff / No Specific Instructor</option>
+                    {instructors.map((inst) => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name} ({inst.mobile})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-purple-600/80 dark:text-purple-400/80 mt-1">
+                    Select the instructor. Their name and phone number will be displayed in reports and accounts.
+                  </p>
+                </div>
+              ) : form.category === 'fuel' || form.category === 'vehicle_service' || form.category === 'repairs' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+                    <Car className="h-3.5 w-3.5 text-blue-600" />
+                    Associated Vehicle (Optional)
+                  </label>
+                  <select
+                    value={form.vehicle_id}
+                    onChange={(e) => setForm({ ...form, vehicle_id: e.target.value, instructor_id: '' })}
+                    className="w-full text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-slate-900 dark:text-white"
+                  >
+                    <option value="">None / General Expense</option>
+                    {vehicles.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.model} ({v.registration_number})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">

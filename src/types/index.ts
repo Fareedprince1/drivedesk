@@ -174,6 +174,7 @@ export interface Expense {
   category: ExpenseCategory;
   amount: number;
   vehicle_id?: string | null;
+  instructor_id?: string | null;
   payment_mode: PaymentMode;
   description: string;
   created_by?: string;

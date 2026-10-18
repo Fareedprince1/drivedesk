@@ -224,6 +224,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     category VARCHAR(30) NOT NULL CHECK (category IN ('fuel', 'vehicle_service', 'repairs', 'salary', 'office', 'rto', 'miscellaneous')),
     amount NUMERIC(10, 2) NOT NULL CHECK (amount > 0),
     vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
+    instructor_id UUID REFERENCES instructors(id) ON DELETE SET NULL,
     payment_mode VARCHAR(30) NOT NULL DEFAULT 'cash',
     description TEXT NOT NULL,
     created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
