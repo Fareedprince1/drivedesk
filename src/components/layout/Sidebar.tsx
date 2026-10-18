@@ -15,14 +15,35 @@ import {
   ShieldCheck,
   ShieldAlert,
   Globe,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../lib/storage';
 
 export const Sidebar: React.FC = () => {
   const { role, isAdmin } = useAuth();
+  const [newEnquiryCount, setNewEnquiryCount] = React.useState(() => {
+    return db.getEnquiries('new').length;
+  });
+
+  React.useEffect(() => {
+    const updateCount = () => setNewEnquiryCount(db.getEnquiries('new').length);
+    window.addEventListener('storage', updateCount);
+    window.addEventListener('drivedesk_sync_complete', updateCount);
+    return () => {
+      window.removeEventListener('storage', updateCount);
+      window.removeEventListener('drivedesk_sync_complete', updateCount);
+    };
+  }, []);
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    {
+      to: '/enquiries',
+      label: 'Enquiries',
+      icon: MessageSquare,
+      badge: newEnquiryCount > 0 ? newEnquiryCount : undefined,
+    },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Appointments', icon: CalendarDays },
     { to: '/instructors', label: 'Instructors', icon: GraduationCap },
@@ -104,6 +125,11 @@ export const Sidebar: React.FC = () => {
                     }`}
                   />
                   <span>{item.label}</span>
+                  {item.badge !== undefined && (
+                    <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
                   {item.adminOnly && (
                     <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-100/60 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
                       ADMIN

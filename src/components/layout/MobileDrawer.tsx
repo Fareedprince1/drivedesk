@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   Globe,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -30,6 +31,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
 
   const allItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/enquiries', label: 'Enquiries / Leads', icon: MessageSquare },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Appointments', icon: CalendarDays },
     { to: '/instructors', label: 'Instructors', icon: GraduationCap },

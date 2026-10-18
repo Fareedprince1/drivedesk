@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Phone, Mail, MapPin, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { Send, Phone, Mail, MapPin, Clock, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
 import { LANDING_DATA } from '../../data/landingData';
+import { db } from '../../lib/storage';
 
 interface ContactSectionProps {
   selectedCourse?: string;
@@ -13,6 +14,8 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
     course: selectedCourse || 'Four-Wheeler Comprehensive',
     message: '',
   });
+
+  const [submittedInfo, setSubmittedInfo] = useState<{ name: string; phone: string; course: string } | null>(null);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -53,17 +56,32 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
     if (!validate()) return;
 
     setIsSubmitting(true);
-    // Simulate brief network submission
+    try {
+      db.addEnquiry({
+        full_name: formData.name,
+        phone: formData.phone,
+        course_interest: formData.course,
+        message: formData.message,
+      });
+    } catch (err) {
+      console.error('Error saving enquiry to db:', err);
+    }
+
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSubmitted(true);
+      setSubmittedInfo({
+        name: formData.name,
+        phone: formData.phone,
+        course: formData.course,
+      });
       setFormData({
         name: '',
         phone: '',
         course: selectedCourse || 'Four-Wheeler Comprehensive',
         message: '',
       });
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -201,15 +219,30 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }
                     Thank You! Enquiry Submitted
                   </h4>
                   <p className="text-sm text-slate-300 max-w-md mx-auto">
-                    We have received your details for <strong>{formData.course || 'Driving Course'}</strong>. Our admissions team will reach out on your mobile number shortly.
+                    We have received your details for <strong>{submittedInfo?.course || 'Driving Course'}</strong>. Our admissions coordinator will reach out to you shortly.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsSubmitted(false)}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
-                  >
-                    Submit Another Enquiry
-                  </button>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <a
+                      href={`https://wa.me/${LANDING_DATA.schoolInfo.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        `Hi Gem Driving School, I submitted an enquiry on your website for "${submittedInfo?.course || 'Driving Course'}". My name is ${submittedInfo?.name || ''} (${submittedInfo?.phone || ''}).`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition-all"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Chat on WhatsApp Now</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsSubmitted(false)}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700"
+                    >
+                      Submit Another Enquiry
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>

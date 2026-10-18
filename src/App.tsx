@@ -16,6 +16,7 @@ import { DrivingTestsPage } from './pages/rto/DrivingTestsPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { LandingPage } from './pages/LandingPage';
+import { EnquiriesPage } from './pages/enquiries/EnquiriesPage';
 import { db } from './lib/storage';
 import { supabase } from './lib/supabase';
 
@@ -136,6 +137,7 @@ export const App: React.FC = () => {
             }
           >
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/enquiries" element={<EnquiriesPage />} />
             <Route path="/candidates" element={<CandidatesList />} />
             <Route path="/candidates/:id" element={<CandidateDetail />} />
             <Route path="/appointments" element={<AppointmentsPage />} />

@@ -254,3 +254,18 @@ export interface CandidateWithStats extends Candidate {
   total_classes_completed_all: number;
   assigned_instructor_name?: string;
 }
+
+export type EnquiryStatus = 'new' | 'contacted' | 'converted' | 'archived';
+
+export interface Enquiry {
+  id: string;
+  full_name: string;
+  phone: string;
+  course_interest: string;
+  message?: string;
+  status: EnquiryStatus;
+  admin_id?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}

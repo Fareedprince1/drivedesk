@@ -19,6 +19,8 @@ import type {
   EnrollmentCalculatedStats,
   CandidateWithStats,
   UserRole,
+  Enquiry,
+  EnquiryStatus,
 } from '../types';
 import { supabase } from './supabase';
 
@@ -50,6 +52,7 @@ const STORAGE_KEYS = {
   NOTES: 'gem_notes',
   HOLIDAYS: 'gem_holidays',
   ACTIVITY_LOG: 'gem_activity_log',
+  ENQUIRIES: 'gem_enquiries',
   INIT_FLAG: 'gem_clean_database_v3',
 };
 
@@ -983,6 +986,7 @@ class DriveDeskStorage {
       this.set(STORAGE_KEYS.RTO, []);
       this.set(STORAGE_KEYS.EXPENSES, []);
       this.set(STORAGE_KEYS.NOTES, []);
+      this.set(STORAGE_KEYS.ENQUIRIES, []);
 
       const defaultHols: Holiday[] = [
         { id: 'hol-1', date: '2026-10-02', description: 'Gandhi Jayanti', created_at: '2026-01-01T00:00:00Z' },
@@ -1121,7 +1125,7 @@ class DriveDeskStorage {
         }
       };
 
-      const [cands, enrs, pays, apps, vehs, insts, exps, pkgs, sett, notes, rto] = await Promise.all([
+      const [cands, enrs, pays, apps, vehs, insts, exps, pkgs, sett, notes, rto, enqs] = await Promise.all([
         queryTable('candidates', true),
         queryTable('enrollments'),
         queryTable('payments'),
@@ -1133,6 +1137,7 @@ class DriveDeskStorage {
         supabase.from('settings').select('*').maybeSingle().then((r) => r?.data || null, () => null),
         queryTable('candidate_notes'),
         queryTable('rto_tracking'),
+        queryTable('enquiries'),
       ]);
 
       // Manage Packages synchronization and initial seed
@@ -1280,6 +1285,9 @@ class DriveDeskStorage {
       this.set(STORAGE_KEYS.EXPENSES, exps || []);
       this.set(STORAGE_KEYS.NOTES, notes || []);
       this.set(STORAGE_KEYS.RTO, hydratedRTO);
+      if (enqs && Array.isArray(enqs) && enqs.length > 0) {
+        this.set(STORAGE_KEYS.ENQUIRIES, enqs);
+      }
 
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('drivedesk_sync_complete'));
@@ -1436,6 +1444,163 @@ class DriveDeskStorage {
 
   getDeletedCandidateIds(): string[] {
     return this.get<string[]>(STORAGE_KEYS.DELETED_CANDIDATES, []);
+  }
+
+  // --- ENQUIRIES / LEADS (STAGE 2) ---
+  getEnquiries(statusFilter?: EnquiryStatus): Enquiry[] {
+    const list = this.get<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
+    const sorted = [...list].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    return statusFilter ? sorted.filter((e) => e.status === statusFilter) : sorted;
+  }
+
+  getEnquiryById(id: string): Enquiry | undefined {
+    return this.getEnquiries().find((e) => e.id === id);
+  }
+
+  addEnquiry(data: {
+    full_name: string;
+    phone: string;
+    course_interest: string;
+    message?: string;
+  }): Enquiry {
+    const enquiries = this.get<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
+    const now = new Date().toISOString();
+    const newEnquiry: Enquiry = {
+      id: generateUUID(),
+      full_name: data.full_name.trim(),
+      phone: data.phone.trim(),
+      course_interest: data.course_interest,
+      message: data.message?.trim() || '',
+      status: 'new',
+      admin_id: this.activeSchoolAdminId || undefined,
+      notes: '',
+      created_at: now,
+      updated_at: now,
+    };
+
+    enquiries.unshift(newEnquiry);
+    this.set(STORAGE_KEYS.ENQUIRIES, enquiries);
+    this.logActivity(
+      'INSERT',
+      'enquiries',
+      newEnquiry.id,
+      `New lead enquiry from ${newEnquiry.full_name} (${newEnquiry.phone}) for ${newEnquiry.course_interest}`
+    );
+
+    // Sync to Supabase cloud
+    this.syncToCloud('enquiries', 'insert', newEnquiry);
+    if (supabase) {
+      supabase.from('enquiries').insert([newEnquiry]).then(() => {});
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+
+    return newEnquiry;
+  }
+
+  updateEnquiryStatus(
+    id: string,
+    status: EnquiryStatus,
+    notes?: string,
+    role: UserRole = 'admin'
+  ): Enquiry {
+    const enquiries = this.get<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
+    const idx = enquiries.findIndex((e) => e.id === id);
+    if (idx === -1) throw new Error('Enquiry not found');
+
+    const old = enquiries[idx];
+    const now = new Date().toISOString();
+    enquiries[idx] = {
+      ...old,
+      status,
+      notes: notes !== undefined ? notes : old.notes,
+      updated_at: now,
+    };
+
+    this.set(STORAGE_KEYS.ENQUIRIES, enquiries);
+    this.logActivity(
+      'UPDATE',
+      'enquiries',
+      id,
+      `Updated enquiry status to "${status}" for ${old.full_name}`,
+      old,
+      enquiries[idx],
+      role
+    );
+    this.syncToCloud('enquiries', 'update', enquiries[idx], id);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+
+    return enquiries[idx];
+  }
+
+  deleteEnquiry(id: string, role: UserRole = 'admin'): void {
+    const enquiries = this.get<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
+    const old = enquiries.find((e) => e.id === id);
+    const updated = enquiries.filter((e) => e.id !== id);
+    this.set(STORAGE_KEYS.ENQUIRIES, updated);
+
+    if (old) {
+      this.logActivity('DELETE', 'enquiries', id, `Deleted enquiry from ${old.full_name}`, old, undefined, role);
+    }
+    this.syncToCloud('enquiries', 'delete', undefined, id);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+  }
+
+  convertEnquiryToCandidate(id: string, role: UserRole = 'admin'): Candidate {
+    const enquiry = this.getEnquiryById(id);
+    if (!enquiry) throw new Error('Enquiry not found');
+
+    const today = new Date().toISOString().split('T')[0];
+    const packages = this.getPackages(true);
+    const matchedPkg =
+      packages.find((p) =>
+        enquiry.course_interest.toLowerCase().includes(p.name.toLowerCase())
+      ) || packages[0];
+
+    const packageSelection = matchedPkg
+      ? {
+          package_id: matchedPkg.id,
+          total_classes: matchedPkg.total_classes,
+          total_fee: matchedPkg.fee,
+          discount_amount: 0,
+          start_date: today,
+        }
+      : {
+          package_id: 'default-pkg',
+          total_classes: 15,
+          total_fee: 6499,
+          discount_amount: 0,
+          start_date: today,
+        };
+
+    const result = this.createCandidateWithEnrollment(
+      {
+        full_name: enquiry.full_name,
+        mobile: enquiry.phone,
+        joining_date: today,
+        status: 'active',
+        notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest}. ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
+      },
+      packageSelection,
+      undefined,
+      role
+    );
+
+    this.updateEnquiryStatus(id, 'converted', enquiry.notes, role);
+    return result.candidate;
   }
 
   // --- CANDIDATES & ENROLLMENTS ---
