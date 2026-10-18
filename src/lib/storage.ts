@@ -38,6 +38,7 @@ const STORAGE_KEYS = {
   PACKAGES: 'gem_packages',
   DELETED_PACKAGES: 'gem_deleted_packages',
   CANDIDATES: 'gem_candidates',
+  DELETED_CANDIDATES: 'gem_deleted_candidates',
   ENROLLMENTS: 'gem_enrollments',
   PAYMENTS: 'gem_payments',
   INSTRUCTORS: 'gem_instructors',
@@ -975,6 +976,7 @@ class DriveDeskStorage {
       this.set(STORAGE_KEYS.INSTRUCTORS, []);
       this.set(STORAGE_KEYS.INSTRUCTOR_LEAVES, []);
       this.set(STORAGE_KEYS.CANDIDATES, []);
+      this.set(STORAGE_KEYS.DELETED_CANDIDATES, []);
       this.set(STORAGE_KEYS.ENROLLMENTS, []);
       this.set(STORAGE_KEYS.PAYMENTS, []);
       this.set(STORAGE_KEYS.APPOINTMENTS, []);
@@ -1265,7 +1267,11 @@ class DriveDeskStorage {
       }
 
       // Direct cloud hydration - guarantees exact sync across all devices and incognito
-      this.set(STORAGE_KEYS.CANDIDATES, cands || []);
+      const deletedCandIds = this.getDeletedCandidateIds();
+      const activeCands = (cands || []).filter(
+        (c: any) => !c.deleted_at && !deletedCandIds.includes(c.id)
+      );
+      this.set(STORAGE_KEYS.CANDIDATES, activeCands);
       this.set(STORAGE_KEYS.ENROLLMENTS, enrs || []);
       this.set(STORAGE_KEYS.PAYMENTS, pays || []);
       this.set(STORAGE_KEYS.APPOINTMENTS, apps || []);
@@ -1428,10 +1434,17 @@ class DriveDeskStorage {
     return `R-${maxNum + 1}`;
   }
 
+  getDeletedCandidateIds(): string[] {
+    return this.get<string[]>(STORAGE_KEYS.DELETED_CANDIDATES, []);
+  }
+
   // --- CANDIDATES & ENROLLMENTS ---
   getCandidates(includeDeleted = false): Candidate[] {
+    const deletedIds = this.getDeletedCandidateIds();
     const list = this.get<Candidate[]>(STORAGE_KEYS.CANDIDATES, []);
-    return includeDeleted ? list : list.filter((c) => !c.deleted_at);
+    return includeDeleted
+      ? list.filter((c) => !deletedIds.includes(c.id))
+      : list.filter((c) => !c.deleted_at && !deletedIds.includes(c.id));
   }
 
   getCandidateById(id: string): Candidate | undefined {
@@ -1734,30 +1747,80 @@ class DriveDeskStorage {
   }
 
   softDeleteCandidate(id: string, role: UserRole = 'admin'): void {
-    const candidates = this.getCandidates(true);
-    const idx = candidates.findIndex((c) => c.id === id);
-    if (idx === -1) throw new Error('Candidate not found');
-    const old = candidates[idx];
-    candidates[idx].deleted_at = new Date().toISOString();
-    this.set(STORAGE_KEYS.CANDIDATES, candidates);
-    this.logActivity('DELETE', 'candidates', id, `Soft-deleted candidate ${old.full_name} (${old.candidate_code})`, old, undefined, role);
-    this.syncToCloud('candidates', 'update', { deleted_at: candidates[idx].deleted_at }, id);
+    this.deleteCandidate(id, role);
   }
 
   deleteCandidate(id: string, role: UserRole = 'admin'): void {
     const candidates = this.getCandidates(true);
     const idx = candidates.findIndex((c) => c.id === id);
-    if (idx === -1) throw new Error('Candidate not found');
-    const old = candidates[idx];
-    candidates[idx].deleted_at = new Date().toISOString();
-    this.set(STORAGE_KEYS.CANDIDATES, candidates);
-    this.logActivity('DELETE', 'candidates', id, `Deleted candidate ${old.full_name} (${old.candidate_code})`, old, undefined, role);
-    this.syncToCloud('candidates', 'delete', undefined, id);
-    // Also remove any booked appointments for this candidate
+    const old = idx !== -1 ? candidates[idx] : undefined;
+    const now = new Date().toISOString();
+
+    // Remove candidate immediately from active local candidates list
+    const remainingCandidates = candidates.filter((c) => c.id !== id);
+    this.set(STORAGE_KEYS.CANDIDATES, remainingCandidates);
+
+    // Record ID in permanent deleted candidates list
+    const deletedIds = this.getDeletedCandidateIds();
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      this.set(STORAGE_KEYS.DELETED_CANDIDATES, deletedIds);
+    }
+
+    // Remove any enrollments for this candidate locally
+    const allEnrollments = this.get<Enrollment[]>(STORAGE_KEYS.ENROLLMENTS, []);
+    this.set(
+      STORAGE_KEYS.ENROLLMENTS,
+      allEnrollments.filter((e) => e.candidate_id !== id)
+    );
+
+    // Remove any appointments for this candidate locally
     const apps = this.getAppointments({ candidateId: id, includeDeleted: true });
     apps.forEach((a) => {
       this.deleteAppointment(a.id, role);
     });
+
+    // Remove any RTO records for this candidate locally
+    const rtoRecords = this.getRTORecordsByCandidateId(id);
+    rtoRecords.forEach((r) => {
+      this.deleteRTORecord(r.id, role);
+    });
+
+    if (old) {
+      this.logActivity('DELETE', 'candidates', id, `Deleted candidate ${old.full_name} (${old.candidate_code})`, old, undefined, role);
+    }
+
+    // Dispatch update events to all open components and tabs
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+
+    // Sync deletion and soft-delete timestamp to Supabase Cloud
+    if (supabase) {
+      // 1. Delete appointments for candidate in Supabase to avoid foreign key block
+      supabase
+        .from('appointments')
+        .delete()
+        .eq('candidate_id', id)
+        .then(() => {
+          // 2. Delete RTO records for candidate in Supabase
+          supabase.from('rto_tracking').delete().eq('candidate_id', id).then(() => {
+            // 3. Delete enrollments for candidate in Supabase (if no payments block)
+            supabase.from('enrollments').delete().eq('candidate_id', id).then(() => {
+              // 4. Mark candidate deleted_at in Supabase (ensures .is('deleted_at', null) will NEVER fetch them)
+              supabase
+                .from('candidates')
+                .update({ deleted_at: now })
+                .eq('id', id)
+                .then(() => {
+                  // 5. Try hard-delete if no payment foreign keys exist
+                  supabase.from('candidates').delete().eq('id', id);
+                });
+            });
+          });
+        });
+    }
   }
 
   addEnrollment(
