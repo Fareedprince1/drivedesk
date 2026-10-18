@@ -14,6 +14,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -28,7 +29,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
   if (!isOpen) return null;
 
   const allItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Appointments', icon: CalendarDays },
     { to: '/instructors', label: 'Instructors', icon: GraduationCap },
@@ -43,6 +44,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose }) =
           { to: '/settings', label: 'Settings (Admin)', icon: Settings },
         ]
       : []),
+    { to: '/landing', label: 'Public Website', icon: Globe },
   ];
 
   return (

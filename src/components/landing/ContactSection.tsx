@@ -1,0 +1,343 @@
+import React, { useState, useEffect } from 'react';
+import { Send, Phone, Mail, MapPin, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { LANDING_DATA } from '../../data/landingData';
+
+interface ContactSectionProps {
+  selectedCourse?: string;
+}
+
+export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    course: selectedCourse || 'Four-Wheeler Comprehensive',
+    message: '',
+  });
+
+  useEffect(() => {
+    if (selectedCourse) {
+      setFormData((prev) => ({ ...prev, course: selectedCourse }));
+    }
+  }, [selectedCourse]);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Full name is required';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    }
+
+    const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+    if (!cleanPhone) {
+      newErrors.phone = 'Phone number is required';
+    } else if (cleanPhone.length < 10) {
+      newErrors.phone = 'Please enter a valid 10-digit mobile number';
+    }
+
+    if (!formData.course) {
+      newErrors.course = 'Please select a course';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    setIsSubmitting(true);
+    // Simulate brief network submission
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+      setFormData({
+        name: '',
+        phone: '',
+        course: selectedCourse || 'Four-Wheeler Comprehensive',
+        message: '',
+      });
+    }, 600);
+  };
+
+  return (
+    <section id="contact" className="py-20 md:py-28 bg-slate-900 text-white relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-900/50 border border-blue-700/60 text-blue-300 text-xs font-semibold uppercase tracking-wider">
+            <Mail className="w-3.5 h-3.5 text-amber-400" />
+            <span>Admissions & Support</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
+            Contact & Quick Enquiry
+          </h2>
+          <p className="text-base sm:text-lg text-slate-300">
+            Have a question or ready to book your first lesson? Send us a message or visit our academy.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+          {/* Left Column: Contact Details Cards (Placeholders clearly marked) */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="p-7 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-6 shadow-xl">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400 block mb-1">
+                  Driving Academy Campus
+                </span>
+                <h3 className="text-2xl font-bold text-white">
+                  {LANDING_DATA.schoolInfo.name}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Official training branch & student desk
+                </p>
+              </div>
+
+              {/* Contact Information Items */}
+              <div className="space-y-4 text-sm text-slate-300">
+                {/* Address */}
+                <div className="flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-950 border border-blue-800/80 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Location / Address:</span>
+                    <p className="text-xs sm:text-sm text-slate-300">
+                      {LANDING_DATA.schoolInfo.addressLine1},<br />
+                      {LANDING_DATA.schoolInfo.addressLine2},<br />
+                      {LANDING_DATA.schoolInfo.city}
+                    </p>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block italic">
+                      [Placeholder address - update in landingData.ts]
+                    </span>
+                  </div>
+                </div>
+
+                {/* Phone Numbers */}
+                <div className="flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-950 border border-blue-800/80 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Phone / Helpline:</span>
+                    <a
+                      href={`tel:${LANDING_DATA.schoolInfo.phone}`}
+                      className="text-amber-400 hover:underline font-semibold block"
+                    >
+                      {LANDING_DATA.schoolInfo.phone}
+                    </a>
+                    <a
+                      href={`tel:${LANDING_DATA.schoolInfo.altPhone}`}
+                      className="text-xs text-slate-400 hover:text-white"
+                    >
+                      Alt: {LANDING_DATA.schoolInfo.altPhone}
+                    </a>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block italic">
+                      [Placeholder phone - update in landingData.ts]
+                    </span>
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-950 border border-blue-800/80 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Email Enquiry:</span>
+                    <a
+                      href={`mailto:${LANDING_DATA.schoolInfo.email}`}
+                      className="text-slate-200 hover:text-amber-400"
+                    >
+                      {LANDING_DATA.schoolInfo.email}
+                    </a>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block italic">
+                      [Placeholder email - update in landingData.ts]
+                    </span>
+                  </div>
+                </div>
+
+                {/* Working Hours */}
+                <div className="flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-950 border border-blue-800/80 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Opening Hours:</span>
+                    <p className="text-xs text-slate-300">
+                      {LANDING_DATA.schoolInfo.openingHours}
+                    </p>
+                    <span className="text-[11px] font-semibold text-emerald-400 block mt-0.5">
+                      {LANDING_DATA.schoolInfo.operatingDays}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Interactive Enquiry Form */}
+          <div className="lg:col-span-7">
+            <div className="p-7 sm:p-9 rounded-2xl bg-slate-800/90 border border-slate-700 shadow-2xl relative">
+              <h3 className="text-2xl font-bold text-white tracking-tight mb-2">
+                Send an Enquiry
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 mb-6">
+                Fill this form and our admission coordinator will call you back within 2 hours.
+              </p>
+
+              {isSubmitted ? (
+                <div className="p-6 rounded-2xl bg-emerald-950/40 border border-emerald-600/60 text-center space-y-4 animate-in fade-in">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-xl font-bold text-white">
+                    Thank You! Enquiry Submitted
+                  </h4>
+                  <p className="text-sm text-slate-300 max-w-md mx-auto">
+                    We have received your details for <strong>{formData.course || 'Driving Course'}</strong>. Our admissions team will reach out on your mobile number shortly.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsSubmitted(false)}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                  >
+                    Submit Another Enquiry
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="name" className="block text-xs font-bold text-slate-200 uppercase tracking-wider mb-1.5">
+                      Your Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      placeholder="e.g. John Doe"
+                      value={formData.name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, name: e.target.value });
+                        if (errors.name) setErrors({ ...errors, name: '' });
+                      }}
+                      className={`w-full px-4 py-3 rounded-xl bg-slate-900 border text-white placeholder-slate-500 focus:outline-none text-sm transition-all ${
+                        errors.name
+                          ? 'border-red-500 ring-1 ring-red-500'
+                          : 'border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
+                      }`}
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{errors.name}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Phone Number */}
+                  <div>
+                    <label htmlFor="phone" className="block text-xs font-bold text-slate-200 uppercase tracking-wider mb-1.5">
+                      Mobile Number (10 Digits) *
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      placeholder="e.g. 9876543210"
+                      maxLength={14}
+                      value={formData.phone}
+                      onChange={(e) => {
+                        setFormData({ ...formData, phone: e.target.value });
+                        if (errors.phone) setErrors({ ...errors, phone: '' });
+                      }}
+                      className={`w-full px-4 py-3 rounded-xl bg-slate-900 border text-white placeholder-slate-500 focus:outline-none text-sm transition-all ${
+                        errors.phone
+                          ? 'border-red-500 ring-1 ring-red-500'
+                          : 'border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
+                      }`}
+                    />
+                    {errors.phone && (
+                      <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{errors.phone}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Course Dropdown */}
+                  <div>
+                    <label htmlFor="course" className="block text-xs font-bold text-slate-200 uppercase tracking-wider mb-1.5">
+                      Interested Driving Course *
+                    </label>
+                    <select
+                      id="course"
+                      name="course"
+                      value={formData.course}
+                      onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm"
+                    >
+                      {LANDING_DATA.courses.map((c) => (
+                        <option key={c.id} value={c.title}>
+                          {c.title} — {c.duration} ({c.fee})
+                        </option>
+                      ))}
+                      <option value="Learners Licence (LL) Assistance Only">
+                        Learner’s Licence (LL) Assistance Only
+                      </option>
+                      <option value="Driving Licence (DL) Renewal / Endorsement">
+                        Driving Licence (DL) Renewal / Endorsement
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Message */}
+                  <div>
+                    <label htmlFor="message" className="block text-xs font-bold text-slate-200 uppercase tracking-wider mb-1.5">
+                      Preferred Timings or Questions (Optional)
+                    </label>
+                    <textarea
+                      id="message"
+                      name="message"
+                      rows={3}
+                      placeholder="e.g. I prefer 7 AM morning slot before office, or weekend training only..."
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-4 rounded-xl text-base font-bold bg-amber-400 text-slate-950 hover:bg-amber-300 active:scale-95 transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                        <span>Sending Enquiry...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        <span>Submit Enquiry</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};

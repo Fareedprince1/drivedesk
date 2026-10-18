@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldCheck,
   ShieldAlert,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,7 +22,7 @@ export const Sidebar: React.FC = () => {
   const { role, isAdmin } = useAuth();
 
   const navItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Appointments', icon: CalendarDays },
     { to: '/instructors', label: 'Instructors', icon: GraduationCap },
@@ -37,6 +38,7 @@ export const Sidebar: React.FC = () => {
           { to: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
         ]
       : []),
+    { to: '/landing', label: 'Public Website', icon: Globe },
   ];
 
   return (

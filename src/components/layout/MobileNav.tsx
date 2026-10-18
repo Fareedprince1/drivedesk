@@ -18,7 +18,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenDrawer }) => {
   const { isAdmin } = useAuth();
 
   const primaryItems = [
-    { to: '/', label: 'Home', icon: LayoutDashboard },
+    { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
     { to: '/candidates', label: 'Candidates', icon: Users },
     { to: '/appointments', label: 'Classes', icon: CalendarDays },
     ...(isAdmin

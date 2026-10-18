@@ -15,6 +15,7 @@ import { VehiclesPage } from './pages/vehicles/VehiclesPage';
 import { DrivingTestsPage } from './pages/rto/DrivingTestsPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
+import { LandingPage } from './pages/LandingPage';
 import { db } from './lib/storage';
 import { supabase } from './lib/supabase';
 
@@ -85,7 +86,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
   if (!isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 };
@@ -97,9 +98,22 @@ const PublicLoginRoute: React.FC = () => {
     return <FullScreenLoader />;
   }
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return <Login />;
+};
+
+// Root Route: Unauthenticated visitors see the public landing page.
+// Authenticated staff/admins are routed to their management dashboard.
+const RootRoute: React.FC = () => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return <FullScreenLoader />;
+  }
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+  return <Navigate to="/dashboard" replace />;
 };
 
 export const App: React.FC = () => {
@@ -108,27 +122,30 @@ export const App: React.FC = () => {
       <CloudSyncWatcher />
       <BrowserRouter>
         <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<RootRoute />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<PublicLoginRoute />} />
 
+          {/* Protected Management Portal */}
           <Route
-            path="/"
             element={
               <ProtectedRoute>
                 <AppLayout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
-            <Route path="candidates" element={<CandidatesList />} />
-            <Route path="candidates/:id" element={<CandidateDetail />} />
-            <Route path="appointments" element={<AppointmentsPage />} />
-            <Route path="instructors" element={<InstructorsPage />} />
-            <Route path="vehicles" element={<VehiclesPage />} />
-            <Route path="driving-tests" element={<DrivingTestsPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/candidates" element={<CandidatesList />} />
+            <Route path="/candidates/:id" element={<CandidateDetail />} />
+            <Route path="/appointments" element={<AppointmentsPage />} />
+            <Route path="/instructors" element={<InstructorsPage />} />
+            <Route path="/vehicles" element={<VehiclesPage />} />
+            <Route path="/driving-tests" element={<DrivingTestsPage />} />
 
             {/* Admin Only Routes (Strict Financial Privacy) */}
             <Route
-              path="payments"
+              path="/payments"
               element={
                 <AdminRoute>
                   <PaymentsPage />
@@ -136,7 +153,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="pending-balance"
+              path="/pending-balance"
               element={
                 <AdminRoute>
                   <PendingBalancePage />
@@ -144,7 +161,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="expenses"
+              path="/expenses"
               element={
                 <AdminRoute>
                   <ExpensesPage />
@@ -152,7 +169,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="reports"
+              path="/reports"
               element={
                 <AdminRoute>
                   <ReportsPage />
@@ -160,7 +177,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="settings"
+              path="/settings"
               element={
                 <AdminRoute>
                   <SettingsPage />
