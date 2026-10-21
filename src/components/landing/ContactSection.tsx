@@ -10,10 +10,15 @@ interface ContactSectionProps {
 }
 
 export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse, config }) => {
+  const availableCourses =
+    config?.courses && config.courses.length > 0
+      ? config.courses
+      : LANDING_DATA.courses;
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    course: selectedCourse || 'Four-Wheeler Comprehensive',
+    course: selectedCourse || availableCourses[0]?.title || 'Four-Wheeler Comprehensive',
     message: '',
   });
 
@@ -91,7 +96,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse, 
       setFormData({
         name: '',
         phone: '',
-        course: selectedCourse || 'Four-Wheeler Comprehensive',
+        course: selectedCourse || availableCourses[0]?.title || 'Four-Wheeler Comprehensive',
         message: '',
       });
     }, 400);
@@ -323,7 +328,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ selectedCourse, 
                       onChange={(e) => setFormData({ ...formData, course: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm"
                     >
-                      {LANDING_DATA.courses.map((c) => (
+                      {availableCourses.map((c) => (
                         <option key={c.id} value={c.title}>
                           {c.title} — {c.duration} ({c.fee})
                         </option>

@@ -22,6 +22,7 @@ import type {
   Enquiry,
   EnquiryStatus,
   LandingPageConfig,
+  LandingCourseConfig,
 } from '../types';
 import { supabase } from './supabase';
 import { DEFAULT_LANDING_CONFIG } from '../data/landingData';
@@ -945,6 +946,97 @@ function sanitizePayload(
   return cleaned;
 }
 
+export function convertPackageToLandingCourse(
+  pkg: Package,
+  index: number,
+  existingCustomCourse?: LandingCourseConfig
+): LandingCourseConfig {
+  const isBike =
+    pkg.vehicle_type === 'bike' ||
+    pkg.name.toLowerCase().includes('two') ||
+    pkg.name.toLowerCase().includes('bike');
+  const isLicence =
+    pkg.name.toLowerCase().includes('licence') ||
+    pkg.name.toLowerCase().includes('license');
+  const isPopular =
+    pkg.name.toLowerCase().includes('comprehensive') ||
+    (!isBike && !isLicence && pkg.total_classes >= 20) ||
+    index === 0;
+
+  // Determine badge
+  let badge = existingCustomCourse?.badge || 'Certified Course';
+  if (!existingCustomCourse?.badge) {
+    if (isPopular) badge = 'Most Popular';
+    else if (isLicence) badge = 'All Inclusive';
+    else if (isBike) badge = 'Beginner Friendly';
+    else if (pkg.total_classes <= 10) badge = 'Refresher Track';
+  }
+
+  // Duration text
+  const duration = pkg.validity_days ? `${pkg.validity_days} Days` : `${pkg.total_classes} Days`;
+
+  // Sessions text
+  const sessions = `${pkg.total_classes} Practical Sessions (${pkg.validity_days ? `${pkg.validity_days} days validity` : '30 mins daily'})`;
+
+  // Fee formatted
+  const fee = `₹ ${pkg.fee.toLocaleString('en-IN')}`;
+
+  // High-res professional photography
+  let imageUrl = existingCustomCourse?.imageUrl || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=800&auto=format&fit=crop';
+  if (!existingCustomCourse?.imageUrl) {
+    if (isBike) {
+      imageUrl = 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=800&auto=format&fit=crop';
+    } else if (isLicence) {
+      imageUrl = 'https://images.unsplash.com/photo-1508974239320-0a029497e820?q=80&w=800&auto=format&fit=crop';
+    } else if (pkg.total_classes <= 10) {
+      imageUrl = 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=800&auto=format&fit=crop';
+    }
+  }
+
+  // Features list
+  let features = existingCustomCourse?.features && existingCustomCourse.features.length > 0
+    ? existingCustomCourse.features
+    : [];
+
+  if (features.length === 0) {
+    if (isBike) {
+      features = [
+        'Geared & Non-Geared vehicle options',
+        'Figure-8 & Slalom track practice',
+        'Basic road safety & balancing drills',
+        'Learner & Driving Licence test guidance',
+      ];
+    } else if (isLicence) {
+      features = [
+        'Dual-control Maruti & Hyundai training fleet',
+        'End-to-end RTO documentation and slot booking',
+        'Test day vehicle assistance & escort to RTO track',
+        'Mock test assessment before final driving test',
+      ];
+    } else {
+      features = [
+        'Modern dual-control hatchbacks & sedans',
+        'Heavy traffic, flyover & night driving',
+        'Parallel, reverse & uphill parking drills',
+        'Full RTO test slot assistance & vehicle provided',
+      ];
+    }
+  }
+
+  return {
+    id: pkg.id,
+    title: pkg.name,
+    badge,
+    isPopular: existingCustomCourse?.isPopular !== undefined ? existingCustomCourse.isPopular : isPopular,
+    description: pkg.description || existingCustomCourse?.description || `Complete training curriculum covering road safety, driving drills, and test preparation.`,
+    duration,
+    sessions,
+    fee,
+    features,
+    imageUrl,
+  };
+}
+
 // --- LOCAL STORAGE DATA ENGINE CLASS ---
 class DriveDeskStorage {
   public activeUserId: string | null = null;
@@ -1155,12 +1247,34 @@ class DriveDeskStorage {
 
   getLandingConfig(): LandingPageConfig {
     const stored = this.get<LandingPageConfig | null>(STORAGE_KEYS.LANDING_CONFIG, null);
+    const activePackages = this.getPackages(true);
+
+    // Auto-sync showcase courses from active admin packages:
+    const storedCourses = stored?.courses || [];
+    let courses: LandingCourseConfig[] = [];
+    if (activePackages && activePackages.length > 0) {
+      courses = activePackages.map((pkg, idx) => {
+        const existingCustom = storedCourses.find(
+          (c) => c.id === pkg.id || c.title.toLowerCase() === pkg.name.toLowerCase()
+        );
+        return convertPackageToLandingCourse(pkg, idx, existingCustom);
+      });
+    } else if (storedCourses.length > 0) {
+      courses = storedCourses;
+    } else {
+      courses = DEFAULT_LANDING_CONFIG.courses;
+    }
+
     if (!stored) {
-      return DEFAULT_LANDING_CONFIG;
+      return {
+        ...DEFAULT_LANDING_CONFIG,
+        courses,
+      };
     }
     return {
       ...DEFAULT_LANDING_CONFIG,
       ...stored,
+      courses,
       sections: {
         ...DEFAULT_LANDING_CONFIG.sections,
         ...(stored.sections || {}),
@@ -1620,6 +1734,12 @@ class DriveDeskStorage {
     this.set(STORAGE_KEYS.PACKAGES, packages);
     this.logActivity('INSERT', 'packages', newPkg.id, `Created package: ${newPkg.name}`, undefined, newPkg, role);
     this.syncToCloud('packages', 'insert', newPkg);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+
     return newPkg;
   }
 
@@ -1633,6 +1753,12 @@ class DriveDeskStorage {
     this.set(STORAGE_KEYS.PACKAGES, packages);
     this.logActivity('UPDATE', 'packages', id, `Updated package: ${updated.name}`, old, updated, role);
     this.syncToCloud('packages', 'update', updated, id);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+
     return updated;
   }
 
@@ -1666,6 +1792,11 @@ class DriveDeskStorage {
             supabase.from('packages').update({ is_active: false }).eq('id', id);
           }
         });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
     }
   }
 

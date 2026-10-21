@@ -350,17 +350,36 @@ export const SettingsPage: React.FC = () => {
       {/* TAB CONTENT: PACKAGES */}
       {activeTab === 'packages' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Manage training courses, lesson counts, fees, and validity. Packages are auto-suggested when adding new candidates.
-            </p>
-            <button
-              onClick={handleOpenAddPkg}
-              className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Package</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-950/40 dark:to-blue-950/40 p-4 rounded-2xl border border-teal-200 dark:border-teal-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300">
+                  Live Showcase Sync Active
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                Packages configured here automatically sync to your public showcase website (Courses cards & Contact enquiry form) in real-time.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href="/landing#courses"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 transition"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-teal-600" />
+                <span>View on Website</span>
+              </a>
+              <button
+                onClick={handleOpenAddPkg}
+                className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Package</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
