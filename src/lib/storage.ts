@@ -98,37 +98,13 @@ export const DEFAULT_INSTRUCTOR_IDS = {
 
 export const DEFAULT_PACKAGES: Package[] = [
   {
-    id: DEFAULT_PACKAGE_IDS.BASIC_CAR,
-    name: 'Basic Car Training',
-    vehicle_type: 'car',
-    total_classes: 10,
-    fee: 5000,
-    validity_days: 45,
-    description: '10 practical classes (30 min each). Ideal for beginners to learn car control and steering basics.',
-    is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-  },
-  {
     id: DEFAULT_PACKAGE_IDS.STANDARD_CAR,
-    name: 'Standard Car Training',
+    name: 'Four-Wheeler Comprehensive',
     vehicle_type: 'car',
     total_classes: 20,
     fee: 8000,
     validity_days: 60,
     description: '20 classes (30 min each). Complete end-to-end practical curriculum including hill start, reverse, and highway driving.',
-    is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: DEFAULT_PACKAGE_IDS.CAR_LICENCE,
-    name: 'Car + Licence Package',
-    vehicle_type: 'car',
-    total_classes: 20,
-    fee: 12000,
-    validity_days: 90,
-    description: '20 practical classes + complete RTO documentation assistance, slot booking, and test day vehicle assistance.',
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -141,6 +117,30 @@ export const DEFAULT_PACKAGES: Package[] = [
     fee: 4000,
     validity_days: 30,
     description: '10 classes (30 min each). Balance, clutch coordination, traffic etiquette, and figure-8 training for RTO test.',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: DEFAULT_PACKAGE_IDS.CAR_LICENCE,
+    name: 'Car + Licence Complete Package',
+    vehicle_type: 'car',
+    total_classes: 20,
+    fee: 12000,
+    validity_days: 90,
+    description: '20 practical classes + complete RTO documentation assistance, slot booking, and test day vehicle assistance.',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: DEFAULT_PACKAGE_IDS.BASIC_CAR,
+    name: 'Basic Car Training (10 Days Refresher)',
+    vehicle_type: 'car',
+    total_classes: 10,
+    fee: 5000,
+    validity_days: 45,
+    description: '10 practical classes (30 min each). Ideal for beginners to learn car control and steering basics.',
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -851,6 +851,10 @@ const DB_ALLOWED_COLUMNS: Record<string, string[]> = {
     'id', 'user_id', 'table_name', 'record_id', 'action',
     'old_values', 'new_values', 'created_at', 'admin_id'
   ],
+  enquiries: [
+    'id', 'full_name', 'phone', 'course_interest', 'message',
+    'status', 'admin_id', 'notes', 'created_at', 'updated_at'
+  ],
 };
 
 function sanitizePayload(
@@ -1028,6 +1032,49 @@ class DriveDeskStorage {
   // Clear all operational records to return to a 100% clean slate
   clearAllData() {
     this.ensureInitialized(true);
+    this.clearAllDataAsync();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
+  }
+
+  async clearAllDataAsync(): Promise<void> {
+    this.ensureInitialized(true);
+
+    if (supabase) {
+      try {
+        const adminId = this.activeSchoolAdminId || this.activeUserId;
+        const purgeTable = async (table: string) => {
+          try {
+            if (adminId) {
+              await supabase!.from(table).delete().eq('admin_id', adminId);
+            } else {
+              await supabase!.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            }
+          } catch (e) {
+            console.warn(`Failed to purge cloud table ${table}:`, e);
+          }
+        };
+
+        // Purge child tables first to respect foreign key constraints
+        await purgeTable('payments');
+        await purgeTable('appointments');
+        await purgeTable('rto_tracking');
+        await purgeTable('candidate_notes');
+        await purgeTable('enrollments');
+        await purgeTable('candidates');
+        await purgeTable('expenses');
+        await purgeTable('enquiries');
+      } catch (err) {
+        console.warn('Error purging cloud database:', err);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('drivedesk_sync_complete'));
+    }
   }
 
   // Load sample demo data if the user wishes to preview realistic records
@@ -1453,13 +1500,23 @@ class DriveDeskStorage {
         }
       }
 
+      // Enquiries smart merge with timestamp priority (never revert newer local status)
       const existingLocalEnqs = this.get<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
-      const finalEnqs = [...(enqs || [])];
-      for (const loc of existingLocalEnqs) {
-        if (!finalEnqs.some((e: any) => e.id === loc.id)) {
-          finalEnqs.push(loc);
+      const enqMap = new Map<string, Enquiry>();
+      (enqs || []).forEach((cEnq: any) => enqMap.set(cEnq.id, cEnq));
+      existingLocalEnqs.forEach((lEnq: Enquiry) => {
+        const cloudEnq = enqMap.get(lEnq.id);
+        if (!cloudEnq) {
+          enqMap.set(lEnq.id, lEnq);
+        } else {
+          const cloudTime = new Date(cloudEnq.updated_at || cloudEnq.created_at || 0).getTime();
+          const localTime = new Date(lEnq.updated_at || lEnq.created_at || 0).getTime();
+          if (localTime >= cloudTime) {
+            enqMap.set(lEnq.id, lEnq);
+          }
         }
-      }
+      });
+      const finalEnqs = Array.from(enqMap.values());
 
       this.set(STORAGE_KEYS.CANDIDATES, activeCands);
       this.set(STORAGE_KEYS.ENROLLMENTS, finalEnrs);
@@ -1530,6 +1587,20 @@ class DriveDeskStorage {
     const list = this.get<Package[]>(STORAGE_KEYS.PACKAGES, DEFAULT_PACKAGES).filter(
       (p) => !deletedIds.includes(p.id)
     );
+    // Harmonize legacy package names with showcase website
+    let changed = false;
+    list.forEach((pkg) => {
+      if (pkg.name === 'Standard Car Training') {
+        pkg.name = 'Four-Wheeler Comprehensive';
+        changed = true;
+      } else if (pkg.name === 'Car + Licence Package') {
+        pkg.name = 'Car + Licence Complete Package';
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.set(STORAGE_KEYS.PACKAGES, list);
+    }
     return onlyActive ? list.filter((p) => p.is_active) : list;
   }
 
@@ -1756,10 +1827,43 @@ class DriveDeskStorage {
 
     const today = new Date().toISOString().split('T')[0];
     const packages = this.getPackages(true);
-    const matchedPkg =
-      packages.find((p) =>
-        enquiry.course_interest.toLowerCase().includes(p.name.toLowerCase())
-      ) || packages[0] || DEFAULT_PACKAGES[0];
+    const courseInterest = (enquiry.course_interest || '').trim();
+
+    // Smart matching against active packages:
+    let matchedPkg = packages.find(
+      (p) => p.name.toLowerCase() === courseInterest.toLowerCase()
+    );
+
+    if (!matchedPkg) {
+      matchedPkg = packages.find(
+        (p) =>
+          courseInterest.toLowerCase().includes(p.name.toLowerCase()) ||
+          p.name.toLowerCase().includes(courseInterest.toLowerCase())
+      );
+    }
+
+    if (!matchedPkg) {
+      const lower = courseInterest.toLowerCase();
+      if (lower.includes('licence') || lower.includes('license')) {
+        matchedPkg = packages.find(
+          (p) => p.name.toLowerCase().includes('licence') || p.name.toLowerCase().includes('license')
+        );
+      } else if (lower.includes('two') || lower.includes('bike') || (lower.includes('wheeler') && !lower.includes('four'))) {
+        matchedPkg = packages.find((p) => p.vehicle_type === 'bike' || p.name.toLowerCase().includes('two'));
+      } else if (lower.includes('four') || lower.includes('comprehensive') || lower.includes('car') || lower.includes('standard')) {
+        matchedPkg = packages.find(
+          (p) =>
+            p.name.toLowerCase().includes('comprehensive') ||
+            p.name.toLowerCase().includes('four') ||
+            p.name.toLowerCase().includes('standard') ||
+            p.vehicle_type === 'car'
+        );
+      }
+    }
+
+    if (!matchedPkg) {
+      matchedPkg = packages[0] || DEFAULT_PACKAGES[0];
+    }
 
     const packageSelection = {
       package_id: matchedPkg.id,
@@ -1777,7 +1881,7 @@ class DriveDeskStorage {
         mobile: cleanMobile || enquiry.phone,
         joining_date: today,
         status: 'active',
-        notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest}. ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
+        notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest} (${matchedPkg.name} - ₹${matchedPkg.fee}). ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
       },
       packageSelection,
       undefined,
@@ -1794,10 +1898,43 @@ class DriveDeskStorage {
 
     const today = new Date().toISOString().split('T')[0];
     const packages = this.getPackages(true);
-    const matchedPkg =
-      packages.find((p) =>
-        enquiry.course_interest.toLowerCase().includes(p.name.toLowerCase())
-      ) || packages[0] || DEFAULT_PACKAGES[0];
+    const courseInterest = (enquiry.course_interest || '').trim();
+
+    // Smart matching against active packages:
+    let matchedPkg = packages.find(
+      (p) => p.name.toLowerCase() === courseInterest.toLowerCase()
+    );
+
+    if (!matchedPkg) {
+      matchedPkg = packages.find(
+        (p) =>
+          courseInterest.toLowerCase().includes(p.name.toLowerCase()) ||
+          p.name.toLowerCase().includes(courseInterest.toLowerCase())
+      );
+    }
+
+    if (!matchedPkg) {
+      const lower = courseInterest.toLowerCase();
+      if (lower.includes('licence') || lower.includes('license')) {
+        matchedPkg = packages.find(
+          (p) => p.name.toLowerCase().includes('licence') || p.name.toLowerCase().includes('license')
+        );
+      } else if (lower.includes('two') || lower.includes('bike') || (lower.includes('wheeler') && !lower.includes('four'))) {
+        matchedPkg = packages.find((p) => p.vehicle_type === 'bike' || p.name.toLowerCase().includes('two'));
+      } else if (lower.includes('four') || lower.includes('comprehensive') || lower.includes('car') || lower.includes('standard')) {
+        matchedPkg = packages.find(
+          (p) =>
+            p.name.toLowerCase().includes('comprehensive') ||
+            p.name.toLowerCase().includes('four') ||
+            p.name.toLowerCase().includes('standard') ||
+            p.vehicle_type === 'car'
+        );
+      }
+    }
+
+    if (!matchedPkg) {
+      matchedPkg = packages[0] || DEFAULT_PACKAGES[0];
+    }
 
     const packageSelection = {
       package_id: matchedPkg.id,
@@ -1815,7 +1952,7 @@ class DriveDeskStorage {
         mobile: cleanMobile || enquiry.phone,
         joining_date: today,
         status: 'active',
-        notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest}. ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
+        notes_summary: `Enrolled from website enquiry for ${enquiry.course_interest} (${matchedPkg.name} - ₹${matchedPkg.fee}). ${enquiry.message ? `Message: "${enquiry.message}". ` : ''}${enquiry.notes ? `Staff notes: ${enquiry.notes}` : ''}`.trim(),
       },
       packageSelection,
       undefined,

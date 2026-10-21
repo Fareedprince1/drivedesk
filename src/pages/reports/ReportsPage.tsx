@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart3,
   Calendar,
@@ -17,6 +17,7 @@ import {
   Clock,
   ArrowUpRight,
   Database,
+  RotateCcw,
 } from 'lucide-react';
 import { db } from '../../lib/storage';
 import { formatDate, formatINR, formatTime12, getTodayIST } from '../../lib/formatters';
@@ -72,15 +73,27 @@ export const ReportsPage: React.FC = () => {
     }
   }, [preset, customStart, customEnd, todayStr]);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const handleSync = () => setRefreshKey((k) => k + 1);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('drivedesk_sync_complete', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('drivedesk_sync_complete', handleSync);
+    };
+  }, []);
+
   // Load all data
-  const candidates: Candidate[] = useMemo(() => db.getCandidates(true), []);
-  const enrollments: Enrollment[] = useMemo(() => db.getEnrollments(), []);
-  const packages: Package[] = useMemo(() => db.getPackages(true), []);
-  const instructors: Instructor[] = useMemo(() => db.getInstructors(), []);
-  const vehicles: Vehicle[] = useMemo(() => db.getVehicles(), []);
-  const allPayments: Payment[] = useMemo(() => db.getPayments(), []);
-  const allAppointments: Appointment[] = useMemo(() => db.getAppointments(), []);
-  const allExpenses: Expense[] = useMemo(() => db.getExpenses(), []);
+  const candidates: Candidate[] = useMemo(() => db.getCandidates(true), [refreshKey]);
+  const enrollments: Enrollment[] = useMemo(() => db.getEnrollments(), [refreshKey]);
+  const packages: Package[] = useMemo(() => db.getPackages(true), [refreshKey]);
+  const instructors: Instructor[] = useMemo(() => db.getInstructors(), [refreshKey]);
+  const vehicles: Vehicle[] = useMemo(() => db.getVehicles(), [refreshKey]);
+  const allPayments: Payment[] = useMemo(() => db.getPayments(), [refreshKey]);
+  const allAppointments: Appointment[] = useMemo(() => db.getAppointments(), [refreshKey]);
+  const allExpenses: Expense[] = useMemo(() => db.getExpenses(), [refreshKey]);
 
   // Filter payments in range (exclude reversals)
   const filteredPayments = useMemo(() => {
@@ -352,6 +365,17 @@ export const ReportsPage: React.FC = () => {
           >
             <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
             Export Tab CSV
+          </button>
+          <button
+            onClick={() => {
+              setRefreshKey((k) => k + 1);
+              db.syncFromCloud();
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 shadow-xs cursor-pointer"
+            title="Refresh reports data"
+          >
+            <RotateCcw className="h-4 w-4 text-teal-600" />
+            Refresh
           </button>
           <button
             onClick={handleFullBackupJSON}

@@ -187,12 +187,13 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleClearData = () => {
-    db.clearAllData();
+  const handleClearData = async () => {
+    setIsResetConfirmOpen(false);
+    setSaveMessage('Purging operational test data from cloud and local cache...');
+    await db.clearAllDataAsync();
     setPackages(db.getPackages());
     setSettings(db.getSettings());
     setActivityLogs(db.getActivityLogs());
-    setIsResetConfirmOpen(false);
     setSaveMessage('All operational data cleared! Clean slate ready for Gym Driving School.');
     setTimeout(() => setSaveMessage(''), 4000);
   };

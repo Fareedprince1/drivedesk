@@ -253,8 +253,8 @@ export const EnquiriesPage: React.FC = () => {
             [
               { id: 'all', label: 'All Leads' },
               { id: 'new', label: 'New Leads', count: stats.newCount },
-              { id: 'contacted', label: 'Contacted' },
-              { id: 'converted', label: 'Converted' },
+              { id: 'contacted', label: 'Attended / Contacted', count: stats.contactedCount },
+              { id: 'converted', label: 'Enrolled Students', count: stats.convertedCount },
               { id: 'archived', label: 'Archived' },
             ] as const
           ).map((tab) => (
@@ -377,8 +377,13 @@ export const EnquiriesPage: React.FC = () => {
                     href={`https://wa.me/91${cleanPhone}?text=${whatsappText}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      if (enquiry.status === 'new') {
+                        handleStatusChange(enquiry.id, 'contacted');
+                      }
+                    }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs active:scale-95 transition"
-                    title="1-Click WhatsApp greeting"
+                    title="1-Click WhatsApp greeting (Marks lead as Attended)"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                     <span>WhatsApp</span>
@@ -387,7 +392,13 @@ export const EnquiriesPage: React.FC = () => {
                   {/* Phone Call Link */}
                   <a
                     href={`tel:${enquiry.phone}`}
+                    onClick={() => {
+                      if (enquiry.status === 'new') {
+                        handleStatusChange(enquiry.id, 'contacted');
+                      }
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 active:scale-95 transition"
+                    title="Call Lead (Marks lead as Attended)"
                   >
                     <Phone className="w-3.5 h-3.5 text-blue-500" />
                     <span>Call</span>
